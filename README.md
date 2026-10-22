@@ -8,6 +8,7 @@ Calculadora web de vigas con cargas escritas con letras (W, P, M) y posiciones e
 
 - **Cargas con letras:** puntual, uniforme, triangular (con el máximo en cualquier punto), trapezoidal, parabólica, complemento de parábola, parabólica con pico y momento concentrado. Magnitudes como `W`, `2W`, `3W/2`, `P`, `M` o números.
 - **Resultados exactos:** momentos en los apoyos, momento máximo positivo y negativo con su ubicación, reacciones, V y M en puntos clave y ecuaciones V(x) y M(x) por tramo, todo en fracciones (por ejemplo −WL²/12 o 8PL/81).
+- **Función de singularidad:** una sola ecuación de V(x) y M(x) para toda la viga, con términos <x − a>ⁿ (por ejemplo M(x) = WLx/6 − Wx³/6L − P<x − L/2>), exacta con letras y también numérica si se dan valores.
 - **Apoyos:** empotramiento, articulado, rodillo, empotramiento guiado o libre en los extremos A y B, más apoyos intermedios.
 - **Articulaciones internas (rótulas):** el momento flector es cero en ellas.
 - **Clasificación:** grado de indeterminación GI = r − 3 − c y detección de mecanismos.

@@ -203,6 +203,17 @@
   .checks .mark.ok { color: var(--ok); }
   .checks .mark.bad { color: var(--bad); }
   .checks .sub { display: block; color: var(--muted); font-size: 11px; }
+  .sing { display: grid; gap: 12px; padding: 14px 16px; }
+  .sing-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 10px; align-items: start; }
+  .sing-row .lhs { font: 600 13px/1.75 var(--font-mono); white-space: nowrap; }
+  .sing-row .lhs.v, .sing-row .rhs.v { color: var(--shear); }
+  .sing-row .lhs.m, .sing-row .rhs.m { color: var(--moment); }
+  .sing-row .rhs { min-width: 0; font: 500 13px/1.75 var(--font-mono); }
+  .sing-row .rhs .t { white-space: nowrap; }
+  .sing-row .num { grid-column: 2; color: var(--muted); font: 400 12px/1.6 var(--font-mono); }
+  .sing-row .num .t { white-space: nowrap; }
+  .copy-btn { padding: 3px 9px; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 5px; font-size: 11.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .copy-btn:hover { color: var(--ink); border-color: var(--muted); }
   .note { max-width: 90ch; margin: 2px 2px 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
 
   /* SVG */
@@ -258,7 +269,9 @@
     .res .val { font-size: 18px; }
     .cards { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
     .res { padding: 10px 12px; }
-    .card-head, .probe, .status { padding-left: 12px; padding-right: 12px; }
+    .card-head, .probe, .status, .sing { padding-left: 12px; padding-right: 12px; }
+    .sing-row { grid-template-columns: auto minmax(0, 1fr); }
+    .copy-btn { grid-column: 2; justify-self: start; }
   }
   @media (prefers-reduced-motion: reduce) { .results { transition: none; } }
 </style>
@@ -374,6 +387,12 @@
       <section class="panel dimmable">
         <div class="card-head"><h2>Cortante y momento en puntos clave</h2><span class="card-note">Izquierda y derecha donde hay salto</span></div>
         <div class="table-scroll"><table id="pts"></table></div>
+      </section>
+
+      <section class="panel dimmable">
+        <div class="card-head"><h2>Función de singularidad</h2><span class="card-note">Una sola ecuación para toda la viga, 0 ≤ x ≤ L</span></div>
+        <div class="sing" id="sing"></div>
+        <p class="foot">&lt;x − a&gt;ⁿ vale 0 si x &lt; a y (x − a)ⁿ si x ≥ a; &lt;x − a&gt;⁰ vale 0 antes de a y 1 desde a. Los términos que arrancan en x = 0 se escriben directamente como x, x², x³. Las articulaciones no agregan términos a M(x): solo hacen que M valga 0 en ese punto.</p>
       </section>
 
       <section class="panel dimmable">
@@ -817,6 +836,30 @@
     }
     return out.filter((r) => r > s + 1e-9 && r < e - 1e-9);
   }
+  // Función de singularidad: M(x) = Σ c·⟨x − a⟩^k, una sola expresión para toda la viga.
+  // Se obtiene de los saltos entre los polinomios de tramos consecutivos (representación única).
+  function taylorAt(p, b) {
+    const out = [];
+    let d = p, fact = Q1;
+    for (let k = 0; k < p.length; k += 1) {
+      if (k > 0) { d = P.deriv(d); fact = fact.mul(k); }
+      out.push(P.ev(d, b).div(fact));
+    }
+    return out;
+  }
+  function singularity(sol, key) {
+    const terms = [];
+    sol.groups.forEach((g, gi) => {
+      const segs = key === "m" ? g.mSegs : g.vSegs, n0 = key === "m" ? g.n : g.n - 1;
+      segs[0].forEach((c, k) => { if (!c.isZero()) terms.push({ pos: Q0, k, q: c, sym: g.sym, n: n0 - k, gi }); });
+      for (let j = 1; j < segs.length; j += 1) {
+        const diff = P.add(segs[j], P.scale(segs[j - 1], new Q(-1)));
+        if (diff.every((c) => c.isZero())) continue;
+        taylorAt(diff, sol.bps[j]).forEach((c, k) => { if (!c.isZero()) terms.push({ pos: sol.bps[j], k, q: c, sym: g.sym, n: n0 - k, gi }); });
+      }
+    });
+    return terms.sort((a, b) => a.pos.cmp(b.pos) || a.k - b.k || a.gi - b.gi);
+  }
   // ===== SOLVER-END =====
 
   // ===== Interfaz =====
@@ -1214,6 +1257,7 @@
     renderReactions();
     renderChecks();
     renderPoints();
+    renderSingular();
     renderEquations();
     updateProbe();
   }
@@ -1372,6 +1416,75 @@
     });
     $("pts").innerHTML = `<thead><tr><th>x</th><th>V</th><th>M</th></tr></thead><tbody>${rows.join("")}</tbody>`;
   }
+
+  // Función de singularidad (Macaulay)
+  const bracketPow = (k) => (k === 0 ? "⁰" : k === 1 ? "" : SUPS[k] || `^${k}`);
+  function singParts(terms) {
+    return terms.map((t) => {
+      if (t.pos.isZero()) {
+        const m = mono(t.q, t.sym, t.n, t.k);
+        return { neg: m.neg, body: m.top + (m.bot ? `/${m.bot}` : "") };
+      }
+      const m = mono(t.q, t.sym, t.n, 0);
+      const coef = m.top + (m.bot ? `/${m.bot}` : "");
+      const br = `<x − ${posShort(t.pos)}>${bracketPow(t.k)}`;
+      return { neg: m.neg, body: coef === "1" ? br : m.bot ? `(${coef})${br}` : `${coef}${br}` };
+    });
+  }
+  function singNumParts(terms) {
+    const map = new Map();
+    for (const t of terms) {
+      const key = `${t.pos.n}/${t.pos.d}|${t.k}`;
+      const v = t.q.num() * (t.sym ? cur.symNum[t.sym] : 1) * Math.pow(cur.Lf, t.n);
+      if (!map.has(key)) map.set(key, { pos: t.pos, k: t.k, v: 0 });
+      map.get(key).v += v;
+    }
+    const list = [...map.values()];
+    const sc = Math.max(1e-12, ...list.map((t) => Math.abs(t.v)));
+    return list.filter((t) => Math.abs(t.v) > 1e-10 * sc).map((t) => {
+      const a = Math.abs(t.v), coef = Math.abs(a - 1) < 1e-12 ? "" : fmtSig(a, 5);
+      let body;
+      if (t.pos.isZero()) body = t.k === 0 ? fmtSig(a, 5) : `${coef}x${pw(t.k)}`;
+      else body = `${coef}<x − ${fmtSig(t.pos.num() * cur.Lf, 5)}>${bracketPow(t.k)}`;
+      return { neg: t.v < 0, body };
+    });
+  }
+  const joinParts = (parts, html) => {
+    if (!parts.length) return html ? `<span class="t">0</span>` : "0";
+    return parts.map((p, i) => {
+      const s = i === 0 ? (p.neg ? "−" : "") + p.body : `${p.neg ? "− " : "+ "}${p.body}`;
+      return html ? `<span class="t">${esc(s)}</span>` : s;
+    }).join(" ");
+  };
+  function renderSingular() {
+    const { sol } = cur;
+    if (!sol.ok || !sol.groups.length) { $("sing").innerHTML = `<p class="empty">${sol.ok ? "Agrega cargas para ver la función." : "Sin función mientras la viga sea un mecanismo."}</p>`; return; }
+    const rows = [["v", "V(x)", state.uF], ["m", "M(x)", uM()]].map(([key, lhs, unit]) => {
+      const terms = singularity(sol, key);
+      const parts = singParts(terms);
+      const plain = `${lhs} = ${joinParts(parts, false)}`;
+      let num = "";
+      if (cur.allNum) {
+        const np = singNumParts(terms);
+        num = `<div class="num">= ${joinParts(np, true)} <span class="t">(x en ${esc(state.uL)}, ${key === "m" ? "M" : "V"} en ${esc(unit)})</span></div>`;
+      }
+      return `<div class="sing-row"><span class="lhs ${key}">${lhs} =</span><div class="rhs ${key}">${joinParts(parts, true)}</div><button type="button" class="copy-btn" data-copy="${esc(plain)}">Copiar</button>${num}</div>`;
+    });
+    $("sing").innerHTML = rows.join("");
+  }
+  $("sing").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-copy]");
+    if (!b) return;
+    const text = b.dataset.copy;
+    const done = () => { b.textContent = "Copiada"; setTimeout(() => { b.textContent = "Copiar"; }, 1400); };
+    const fallback = () => {
+      const row = b.parentElement.querySelector(".rhs");
+      const r = document.createRange(); r.selectNodeContents(row);
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      b.textContent = "Selecciónala y cópiala";
+    };
+    try { navigator.clipboard.writeText(text).then(done, fallback); } catch (err) { fallback(); }
+  });
 
   function renderEquations() {
     const { sol } = cur;
