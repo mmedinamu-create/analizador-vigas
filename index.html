@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Analizador de vigas</title>
-<meta name="description" content="Vigas con apoyos configurables, articulaciones internas y cargas en cualquier posición: reacciones, diagramas de cortante y momento, y ecuaciones por tramo.">
+<meta name="description" content="Vigas con apoyos configurables, articulaciones internas y cargas con letras (W, P, M) en posiciones como L/3: reacciones, momentos exactos en fracciones y diagramas de cortante y momento.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-  /* Layout: mesa de trabajo de dos columnas. El modelo a la izquierda; a la derecha, esquema, V y M comparten el mismo eje x. */
+  /* Layout: mesa de trabajo de dos columnas. El modelo a la izquierda; a la derecha, esquema, V y M comparten el eje x, y debajo los resultados exactos. */
   :root {
     --bg: #edf1f0;
     --surface: #ffffff;
@@ -62,7 +62,7 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 400 14px/1.45 var(--font-body); }
   button, input, select { font: inherit; color: inherit; }
-  .wrap { max-width: 1320px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .wrap { max-width: 1340px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 
   .topbar { background: var(--surface); border-bottom: 1px solid var(--line); }
   .topbar-in { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; padding-block: 12px; }
@@ -76,7 +76,7 @@
   .top-meta { margin: 0; color: var(--muted); font: 500 11.5px var(--font-mono); }
 
   main.wrap { padding-block: 18px 40px; }
-  .workspace { display: grid; grid-template-columns: 350px minmax(0, 1fr); gap: 18px; align-items: start; }
+  .workspace { display: grid; grid-template-columns: 370px minmax(0, 1fr); gap: 18px; align-items: start; }
   .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
 
   /* Controles */
@@ -90,13 +90,15 @@
   .sec-title { margin: 0; color: var(--muted); font: 600 11.5px var(--font-display); letter-spacing: .08em; text-transform: uppercase; }
   .field { display: grid; gap: 5px; min-width: 0; }
   .field > label { font-size: 12px; font-weight: 500; }
-  .hint { margin: 0; color: var(--muted); font-size: 11.5px; line-height: 1.45; }
+  .hint { margin: 0; color: var(--muted); font-size: 11.5px; line-height: 1.5; }
+  .hint code { padding: 0 4px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; font: 500 11px var(--font-mono); }
   .inp { position: relative; }
-  .inp input, select {
+  .inp input, input.txt, select {
     width: 100%; height: 36px; padding: 0 10px; background: var(--surface); border: 1px solid var(--line);
     border-radius: 5px; outline: none;
   }
-  .inp input { padding-right: 46px; font: 500 13px var(--font-mono); font-variant-numeric: tabular-nums; }
+  .inp input, input.txt { font: 500 13px var(--font-mono); font-variant-numeric: tabular-nums; }
+  .inp input { padding-right: 44px; }
   .inp .u { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); color: var(--faint); font: 500 10.5px var(--font-mono); pointer-events: none; }
   select { font-size: 13px; cursor: pointer; }
   input:focus-visible, select:focus-visible { border-color: var(--moment); box-shadow: 0 0 0 3px var(--focus); }
@@ -112,23 +114,27 @@
     background: transparent; border: 1px solid var(--line); border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
   }
   .btn-add:hover { border-color: var(--moment); background: var(--moment-fill); }
-  .add-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .add-row .btn-add { justify-content: center; color: var(--load); }
-  .add-row .btn-add:hover { border-color: var(--load); background: var(--load-fill); }
+  .add-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .add-row .btn-add { color: var(--load); border-style: dashed; }
+  .add-row .btn-add:hover { border-style: solid; border-color: var(--load); background: var(--load-fill); }
   .btn-x {
     width: 34px; height: 36px; display: grid; place-items: center; padding: 0; color: var(--muted); background: var(--surface);
     border: 1px solid var(--line); border-radius: 5px; font-size: 17px; line-height: 1; cursor: pointer;
   }
   .btn-x:hover { color: var(--bad); border-color: var(--bad); }
   .load { display: grid; gap: 9px; padding: 10px; background: var(--surface-2); border: 1px solid var(--line-soft); border-left: 3px solid var(--load); border-radius: 6px; }
-  .load-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .load-tag { font: 600 12.5px var(--font-display); }
-  .load-tag b { color: var(--load); font-family: var(--font-mono); font-weight: 600; margin-right: 4px; }
-  .load-tools { display: flex; gap: 6px; align-items: center; }
-  .load-tools .btn-x { width: 30px; height: 30px; }
-  .link-btn { padding: 4px 8px; color: var(--moment); background: none; border: 1px solid transparent; border-radius: 4px; font-size: 11.5px; font-weight: 600; cursor: pointer; }
-  .link-btn:hover { border-color: var(--line); }
-  .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+  .load-head { display: flex; align-items: center; gap: 8px; }
+  .load-head .tag { min-width: 20px; color: var(--load); font: 600 12px var(--font-mono); }
+  .load-head select { flex: 1; min-width: 0; height: 32px; font-weight: 600; }
+  .load-head .btn-x { width: 32px; height: 32px; flex: none; }
+  .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(98px, 1fr)); gap: 8px; }
+  .chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .chips .lbl { color: var(--muted); font-size: 11.5px; }
+  .chip-btn { padding: 2px 9px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; font: 500 11.5px var(--font-mono); cursor: pointer; }
+  .chip-btn:hover { color: var(--moment); border-color: var(--moment); }
+  .load-err { margin: 0; color: var(--bad); font-size: 12px; }
+  .load-err:empty { display: none; }
+  .vals { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
   .ctl-error { margin: 0; padding: 10px 16px 14px; color: var(--bad); font-size: 12px; line-height: 1.45; }
   .empty { margin: 0; color: var(--faint); font-size: 12px; }
 
@@ -145,6 +151,8 @@
   .gi-legend { color: var(--muted); font-size: 11.5px; }
   .status-msg { flex-basis: 100%; margin: 2px 0 0; color: var(--bad); font-size: 12.5px; line-height: 1.5; }
   .alert { margin: 0; padding: 10px 14px; color: var(--bad); background: var(--bad-soft); border: 1px solid var(--bad); border-radius: 6px; font-size: 12.5px; }
+  .ref { margin: 0; padding: 10px 14px; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 6px; font-size: 12.5px; }
+  .ref b { font: 500 12.5px var(--font-mono); }
 
   .card-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; padding: 11px 16px; border-bottom: 1px solid var(--line-soft); }
   .card-head h2 { margin: 0; font: 600 15px var(--font-display); }
@@ -155,45 +163,47 @@
   .plot-host { width: 100%; min-width: 0; }
   #plot { display: block; width: 100%; height: auto; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
   .probe { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 10px 16px; border-top: 1px solid var(--line-soft); font: 500 12.5px var(--font-mono); font-variant-numeric: tabular-nums; }
-  .probe label { color: var(--muted); font-family: var(--font-body); font-size: 12px; }
-  .probe .inp { width: 112px; }
-  .probe .inp input { height: 32px; }
+  .probe label { color: var(--muted); font-family: var(--font-body); font-size: 12px; white-space: nowrap; }
   .probe-x { display: flex; align-items: center; gap: 8px; }
+  .probe-x input { width: 110px; height: 32px; }
   .read-v { color: var(--shear); }
   .read-m { color: var(--moment); }
   .probe-tip { flex-basis: 100%; margin: 0; color: var(--faint); font: 400 11px var(--font-body); }
 
-  .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-  .metric { padding: 12px 14px; }
-  .metric .k { color: var(--muted); font-size: 11.5px; }
-  .metric .v { margin-top: 4px; font: 600 19px var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .metric .at { margin-top: 2px; color: var(--muted); font: 400 11.5px var(--font-mono); }
-  .metric.m .v { color: var(--moment); }
-  .metric.s .v { color: var(--shear); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+  .res { display: flex; flex-direction: column; gap: 5px; min-width: 0; padding: 12px 14px; }
+  .res.key { border-color: var(--moment); }
+  .res .name { color: var(--muted); font: 600 11px var(--font-display); letter-spacing: .06em; text-transform: uppercase; }
+  .res .val { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; min-height: 46px; color: var(--ink); font: 500 21px var(--font-mono); overflow-wrap: anywhere; }
+  .res.m .val { color: var(--moment); }
+  .res .dec, .res .where { color: var(--muted); font: 400 12px var(--font-mono); overflow-wrap: anywhere; }
+  .res .numv { color: var(--ok); font: 500 12.5px var(--font-mono); }
+  .frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; line-height: 1.1; }
+  .frac > span:first-child { padding: 0 3px 1px; border-bottom: 1.5px solid currentColor; }
+  .frac > span:last-child { padding-top: 1px; }
+  .op { padding: 0 2px; }
 
-  .two { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+  .two { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 14px; align-items: start; }
   .table-scroll { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
   th { padding: 8px 12px; color: var(--muted); border-bottom: 1px solid var(--line); font: 600 10.5px var(--font-display); letter-spacing: .07em; text-align: left; text-transform: uppercase; white-space: nowrap; }
   td { padding: 8px 12px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
   tr:last-child td { border-bottom: 0; }
-  td.num, th.num { text-align: right; }
-  td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  td .sub { display: block; color: var(--muted); font-size: 11px; }
-  .eq td { font-family: var(--font-mono); font-size: 12px; white-space: nowrap; }
-  .eq td.span { color: var(--muted); }
-  .eq .fv { color: var(--shear); }
-  .eq .fm { color: var(--moment); }
+  td.mono { font-family: var(--font-mono); white-space: nowrap; }
+  td .sub { display: block; margin-top: 1px; color: var(--muted); font: 400 11px var(--font-mono); white-space: nowrap; }
+  td .side { color: var(--muted); font: 400 11px var(--font-body); }
+  td.cv { color: var(--shear); }
+  td.cm { color: var(--moment); }
   .foot { margin: 0; padding: 10px 16px 13px; color: var(--muted); border-top: 1px solid var(--line-soft); font-size: 11.5px; line-height: 1.5; }
   .checks { list-style: none; margin: 0; padding: 4px 0; }
   .checks li { display: grid; grid-template-columns: minmax(0, 1fr) auto 22px; gap: 10px; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--line-soft); font-size: 12.5px; }
   .checks li:last-child { border-bottom: 0; }
-  .checks .val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .checks .val { font-family: var(--font-mono); white-space: nowrap; }
   .checks .mark { font-weight: 700; text-align: center; }
   .checks .mark.ok { color: var(--ok); }
   .checks .mark.bad { color: var(--bad); }
   .checks .sub { display: block; color: var(--muted); font-size: 11px; }
-  .note { max-width: 88ch; margin: 2px 2px 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+  .note { max-width: 90ch; margin: 2px 2px 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
 
   /* SVG */
   #plot text { font-family: var(--font-mono); font-size: 10.5px; }
@@ -238,7 +248,6 @@
   .p-dot-m { fill: var(--surface); stroke: var(--moment); stroke-width: 2.2; }
 
   @media (max-width: 1180px) {
-    .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .two { grid-template-columns: minmax(0, 1fr); }
   }
   @media (max-width: 980px) {
@@ -246,11 +255,9 @@
   }
   @media (max-width: 520px) {
     .brand-sub { display: none; }
-    .metric .v { font-size: 16px; }
-    .metric { padding: 10px 12px; }
-    .metrics { gap: 8px; }
-    .add-row { grid-template-columns: 1fr 1fr 1fr; }
-    .add-row .btn-add { padding: 0 4px; font-size: 11.5px; }
+    .res .val { font-size: 18px; }
+    .cards { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+    .res { padding: 10px 12px; }
     .card-head, .probe, .status { padding-left: 12px; padding-right: 12px; }
   }
   @media (prefers-reduced-motion: reduce) { .results { transition: none; } }
@@ -268,10 +275,10 @@
       </svg>
       <div>
         <h1>Analizador de vigas</h1>
-        <p class="brand-sub">Apoyos, articulaciones y cargas donde quieras. Reacciones, V(x) y M(x).</p>
+        <p class="brand-sub">Cargas con letras (W, P, M) en posiciones como L/3. Resultados exactos en fracciones, con apoyos y articulaciones.</p>
       </div>
     </div>
-    <p class="top-meta">Euler-Bernoulli · EI constante · kN, m</p>
+    <p class="top-meta">Euler-Bernoulli · EI constante</p>
   </div>
 </header>
 
@@ -279,15 +286,9 @@
   <div class="workspace">
     <div class="panel controls" id="controls">
       <div class="sec">
-        <div class="sec-head"><h2 class="sec-title">Viga</h2></div>
         <div class="field">
-          <label for="preset">Cargar ejemplo</label>
+          <label for="preset">Cargar un caso</label>
           <select id="preset"></select>
-        </div>
-        <div class="field">
-          <label for="inp-L">Luz total, <i>L</i></label>
-          <div class="inp"><input id="inp-L" data-field="L" type="text" inputmode="decimal" autocomplete="off" spellcheck="false"><span class="u">m</span></div>
-          <p class="hint">Si cambias L, las cargas distribuidas que llegan hasta B se estiran con la viga.</p>
         </div>
       </div>
 
@@ -304,76 +305,88 @@
       <div class="sec">
         <div class="sec-head"><h2 class="sec-title">Articulaciones</h2><button type="button" class="btn-add" data-action="add-hinge">+ Articulación</button></div>
         <div class="list" id="hingeList"></div>
-        <p class="hint">Rótula interna: ahí el momento flector es cero y la viga puede girar distinto a cada lado. Cada una resta 1 al grado de indeterminación.</p>
+        <p class="hint">Rótula interna: ahí el momento flector es cero. Cada una resta 1 al grado de indeterminación.</p>
       </div>
 
       <div class="sec">
         <div class="sec-head"><h2 class="sec-title">Cargas</h2></div>
-        <div class="add-row">
-          <button type="button" class="btn-add" data-action="add-point">+ Puntual</button>
-          <button type="button" class="btn-add" data-action="add-dist">+ Distribuida</button>
-          <button type="button" class="btn-add" data-action="add-moment">+ Momento</button>
-        </div>
-        <p class="hint">P y w son positivas hacia abajo; usa valores negativos para cargas hacia arriba. Las posiciones x se miden desde A.</p>
         <div class="list" id="loadList"></div>
+        <div class="add-row" id="addBar"></div>
+        <p class="hint">Magnitudes con letras: <code>W</code>, <code>2W</code>, <code>3W/2</code>, <code>P</code>, <code>M</code>, o números. Posiciones en función de L: <code>L/3</code>, <code>2L/3</code>, <code>0.25L</code>, <code>0</code>, <code>L</code>. W es carga por unidad de longitud y P es carga puntual, positivas hacia abajo.</p>
+      </div>
+
+      <div class="sec">
+        <div class="sec-head"><h2 class="sec-title">Valores numéricos (opcional)</h2></div>
+        <div class="vals" id="vals"></div>
+        <div class="pair">
+          <div class="field"><label for="uF">Fuerza</label><select id="uF"><option>kN</option><option>tf</option><option>kgf</option><option>N</option><option>kip</option><option>lb</option></select></div>
+          <div class="field"><label for="uL">Longitud</label><select id="uL"><option>m</option><option>cm</option><option>ft</option><option>in</option></select></div>
+        </div>
+        <p class="hint">Los resultados con letras se mantienen siempre. Con un valor de L también puedes escribir posiciones en metros, por ejemplo <code>2.5</code>.</p>
       </div>
       <p class="ctl-error" id="ctlError" role="alert" hidden></p>
     </div>
 
     <div class="results" id="results" aria-live="polite">
       <section class="panel status" id="status"></section>
+      <p class="ref" id="refBanner" hidden></p>
       <p class="alert" id="resultsAlert" hidden></p>
 
       <section class="panel dimmable">
         <div class="card-head">
-          <h2>Diagramas</h2>
+          <h2>Viga y diagramas</h2>
           <div class="seg" role="group" aria-label="Lado en que se dibuja el momento positivo">
-            <button type="button" id="mUp" aria-pressed="true">M+ arriba</button>
-            <button type="button" id="mDown" aria-pressed="false">M+ abajo (tracción)</button>
+            <button type="button" id="mUp" aria-pressed="false">M+ arriba</button>
+            <button type="button" id="mDown" aria-pressed="true">M+ abajo (como la tabla)</button>
           </div>
         </div>
         <div class="plot-host" id="plotHost"><svg id="plot" role="img" aria-label="Esquema de la viga y diagramas de cortante y momento flector"></svg></div>
         <div class="probe">
           <div class="probe-x">
             <label for="probeX">Evaluar en x =</label>
-            <div class="inp"><input id="probeX" type="text" inputmode="decimal" autocomplete="off" spellcheck="false"><span class="u">m</span></div>
+            <input id="probeX" class="txt" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="L/3">
           </div>
           <span class="read-v" id="readV">V = —</span>
           <span class="read-m" id="readM">M = —</span>
-          <p class="probe-tip">Pasa el cursor o toca el diagrama para leer valores; un clic fija el punto.</p>
+          <p class="probe-tip">Escribe una posición como L/3 para obtener V y M exactos, o pasa el cursor por el diagrama. Un clic fija el punto.</p>
         </div>
       </section>
 
-      <div class="metrics dimmable" id="metrics"></div>
+      <div class="cards dimmable" id="cards"></div>
 
       <div class="two dimmable">
         <section class="panel">
           <div class="card-head"><h2>Reacciones</h2><span class="card-note">↑ y ↺ positivas</span></div>
           <div class="table-scroll">
             <table>
-              <thead><tr><th>Apoyo</th><th class="num">x (m)</th><th class="num">R<sub>y</sub> (kN)</th><th class="num">M (kN·m)</th></tr></thead>
+              <thead><tr><th>Apoyo</th><th>x</th><th>R<sub>y</sub></th><th>Momento</th></tr></thead>
               <tbody id="reactionRows"></tbody>
             </table>
           </div>
           <p class="foot">Solo hay cargas verticales, así que las reacciones horizontales valen cero.</p>
         </section>
         <section class="panel">
-          <div class="card-head"><h2>Verificación</h2><span class="card-note">Debe dar cero</span></div>
+          <div class="card-head"><h2>Verificación</h2><span class="card-note">Exacta, con fracciones</span></div>
           <ul class="checks" id="checks"></ul>
         </section>
       </div>
 
       <section class="panel dimmable">
-        <div class="card-head"><h2>Ecuaciones por tramo</h2><span class="card-note">x en m, medido desde A</span></div>
+        <div class="card-head"><h2>Cortante y momento en puntos clave</h2><span class="card-note">Izquierda y derecha donde hay salto</span></div>
+        <div class="table-scroll"><table id="pts"></table></div>
+      </section>
+
+      <section class="panel dimmable">
+        <div class="card-head"><h2>Ecuaciones por tramo</h2><span class="card-note">x medido desde A</span></div>
         <div class="table-scroll">
-          <table class="eq">
-            <thead><tr><th>Tramo</th><th>V(x) en kN</th><th>M(x) en kN·m</th></tr></thead>
+          <table>
+            <thead><tr><th>Tramo</th><th>V(x)</th><th>M(x)</th></tr></thead>
             <tbody id="eqRows"></tbody>
           </table>
         </div>
       </section>
 
-      <p class="note">Convenciones: momento flector positivo cuando tracciona la fibra inferior (sagging); cortante positivo cuando la resultante a la izquierda del corte va hacia arriba. Se resuelve por el método de rigidez con EI constante, así que las reacciones no dependen del valor de EI. La estabilidad se revisa por separado: si los apoyos y articulaciones permiten un movimiento de cuerpo rígido, la viga se reporta como mecanismo.</p>
+      <p class="note">Convenciones: momento flector positivo cuando tracciona la fibra inferior; los momentos de empotramiento salen negativos, como en la tabla. Cortante positivo cuando la resultante a la izquierda del corte va hacia arriba. Reacciones positivas hacia arriba. Se resuelve por el método de rigidez con aritmética exacta y EI constante, así que los resultados no dependen de EI. Si los apoyos y las articulaciones permiten un movimiento de cuerpo rígido, la viga se reporta como mecanismo.</p>
     </div>
   </div>
 </main>
@@ -381,8 +394,61 @@
 <script>
 (() => {
   "use strict";
-
   // ===== SOLVER-START =====
+  // Aritmética racional exacta (BigInt) y polinomios con coeficientes racionales.
+  const BI = (x) => BigInt(x);
+  function bgcd(a, b) { a = a < 0n ? -a : a; b = b < 0n ? -b : b; while (b) { [a, b] = [b, a % b]; } return a; }
+  class Q {
+    constructor(n, d = 1n) {
+      n = BI(n); d = BI(d);
+      if (d === 0n) throw new Error("División por cero");
+      if (d < 0n) { n = -n; d = -d; }
+      const g = bgcd(n, d) || 1n;
+      this.n = n / g; this.d = d / g;
+    }
+    static of(x) { return x instanceof Q ? x : new Q(x); }
+    add(o) { o = Q.of(o); return new Q(this.n * o.d + o.n * this.d, this.d * o.d); }
+    sub(o) { o = Q.of(o); return new Q(this.n * o.d - o.n * this.d, this.d * o.d); }
+    mul(o) { o = Q.of(o); return new Q(this.n * o.n, this.d * o.d); }
+    div(o) { o = Q.of(o); return new Q(this.n * o.d, this.d * o.n); }
+    neg() { return new Q(-this.n, this.d); }
+    isZero() { return this.n === 0n; }
+    cmp(o) { o = Q.of(o); const v = this.n * o.d - o.n * this.d; return v < 0n ? -1 : v > 0n ? 1 : 0; }
+    num() { return Number(this.n) / Number(this.d); }
+    static fromDecimal(s) {
+      s = String(s).trim();
+      if (!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(s)) throw new Error(`"${s}" no es un número`);
+      let sign = 1n;
+      if (s[0] === "-") { sign = -1n; s = s.slice(1); } else if (s[0] === "+") s = s.slice(1);
+      const [i, f = ""] = s.split(".");
+      return new Q(sign * BI((i || "0") + f), 10n ** BI(f.length));
+    }
+    static parse(s) {
+      s = String(s).trim();
+      if (s === "") return new Q(1);
+      const parts = s.split("/");
+      if (parts.length > 2) throw new Error(`"${s}" no es válido`);
+      let q = Q.fromDecimal(parts[0] === "" || parts[0] === "+" ? "1" : parts[0] === "-" ? "-1" : parts[0]);
+      if (parts.length === 2) q = q.div(Q.fromDecimal(parts[1]));
+      return q;
+    }
+  }
+  const Q0 = new Q(0), Q1 = new Q(1);
+
+  const P = {
+    trim(p) { p = p.slice(); while (p.length > 1 && p[p.length - 1].isZero()) p.pop(); return p.length ? p : [Q0]; },
+    add(a, b) { const r = []; for (let i = 0; i < Math.max(a.length, b.length); i += 1) r.push((a[i] || Q0).add(b[i] || Q0)); return P.trim(r); },
+    scale(a, k) { return P.trim(a.map((c) => c.mul(k))); },
+    mul(a, b) { const r = Array(a.length + b.length - 1).fill(Q0); a.forEach((x, i) => b.forEach((y, j) => { r[i + j] = r[i + j].add(x.mul(y)); })); return P.trim(r); },
+    integ(a) { return [Q0, ...a.map((c, i) => c.div(i + 1))]; },
+    deriv(a) { return P.trim(a.length > 1 ? a.slice(1).map((c, i) => c.mul(i + 1)) : [Q0]); },
+    ev(a, x) { x = Q.of(x); let r = Q0; for (let i = a.length - 1; i >= 0; i -= 1) r = r.mul(x).add(a[i]); return r; },
+    evf(a, x) { let r = 0; for (let i = a.length - 1; i >= 0; i -= 1) r = r * x + (typeof a[i] === "number" ? a[i] : a[i].num()); return r; },
+    defint(a, s, e) { const F = P.integ(a); return P.ev(F, e).sub(P.ev(F, s)); },
+    lin(c0, c1) { return P.trim([Q.of(c0), Q.of(c1)]); },
+  };
+  const XP = P.lin(0, 1);
+
   const SUPPORT_INFO = {
     empotrado:  { name: "Empotramiento", v: 1, th: 1, h: 1, r: 3 },
     articulado: { name: "Articulado (pasador)", v: 1, th: 0, h: 1, r: 2 },
@@ -391,690 +457,945 @@
     libre:      { name: "Libre", v: 0, th: 0, h: 0, r: 0 },
   };
 
-  function uniqueSorted(values, tol) {
-    const s = values.filter(Number.isFinite).sort((a, b) => a - b);
+  // ---- Entradas: posiciones en función de L y magnitudes con letras ----
+  // "L/3", "2L/3", "0.25L", "L", "0"; o metros si L tiene valor ("2.5").
+  function parsePos(str, Lnum) {
+    const s = String(str ?? "").replace(/\s|\*/g, "").replace(",", ".");
+    if (s === "") throw new Error("Falta la posición");
+    const m = s.match(/^([+-]?[0-9./]*)L(?:\/([0-9.]+))?$/i);
+    let q;
+    if (m) {
+      q = Q.parse(m[1] === "" ? "1" : m[1]);
+      if (m[2]) q = q.div(Q.fromDecimal(m[2]));
+    } else {
+      let v;
+      try { v = Q.parse(s); } catch (e) { throw new Error(`No entiendo la posición "${str}". Usa L/3, 0.25L o metros.`); }
+      if (Lnum) q = v.div(Lnum);
+      else if (v.isZero()) q = Q0;
+      else throw new Error(`Escribe la posición en función de L (por ejemplo L/3 o ${s}L), o da un valor numérico de L`);
+    }
+    if (q.cmp(0) < 0 || q.cmp(1) > 0) throw new Error("La posición debe estar entre 0 y L");
+    return q;
+  }
+  // "W", "2W", "3W/2", "1.5P", "-W", "10"
+  function parseMag(str) {
+    const s = String(str ?? "").replace(/\s|\*/g, "").replace(",", ".");
+    if (s === "") throw new Error("Falta la magnitud");
+    const m = s.match(/^([+-]?[0-9./]*?)([A-Za-z][A-Za-z0-9_]*)?(?:\/([0-9.]+))?$/);
+    if (!m || (m[1] === "" && !m[2])) throw new Error(`No entiendo la magnitud "${str}"`);
+    if (m[2] && /^(L|x)$/i.test(m[2])) throw new Error(`La carga no puede llamarse ${m[2]} (está reservada)`);
+    let c;
+    try { c = Q.parse(m[1] === "" || m[1] === "+" ? "1" : m[1] === "-" ? "-1" : m[1]); } catch (e) { throw new Error(`No entiendo la magnitud "${str}"`); }
+    if (m[3]) c = c.div(Q.fromDecimal(m[3]));
+    return { coef: c, sym: m[2] || "" };
+  }
+
+  function lineW(a, b, k1, k2) {
+    const slope = Q.of(k2).sub(k1).div(b.sub(a));
+    return P.lin(Q.of(k1).sub(slope.mul(a)), slope);
+  }
+  // Cargas elementales normalizadas (L = 1): {kind, coef, sym, n, a, b, w}
+  // n = potencia de L del momento que produce (distribuida 2, puntual 1, momento 0).
+  // Momento: coef positivo = horario.
+  function buildLoad(L, Lnum) {
     const out = [];
-    for (const v of s) if (!out.length || v - out[out.length - 1] > tol) out.push(v);
+    const pos = (k) => parsePos(L[k], Lnum);
+    const dist = (mag, a, b, w) => { if (b.cmp(a) <= 0) throw new Error("El final debe quedar después del inicio"); out.push({ kind: "dist", ...mag, n: 2, a, b, w }); };
+    switch (L.type) {
+      case "puntual": { const mg = parseMag(L.mag); out.push({ kind: "point", ...mg, n: 1, a: pos("a") }); break; }
+      case "momento": { const mg = parseMag(L.mag); if (L.dir === "anti") mg.coef = mg.coef.neg(); out.push({ kind: "moment", ...mg, n: 0, a: pos("a") }); break; }
+      case "uniforme": { const a = pos("a"), b = pos("b"); dist(parseMag(L.mag), a, b, [Q1]); break; }
+      case "triangular": {
+        const a = pos("a"), c = pos("c"), b = pos("b"), mg = parseMag(L.mag);
+        if (b.cmp(a) <= 0) throw new Error("El final debe quedar después del inicio");
+        if (c.cmp(a) < 0 || c.cmp(b) > 0) throw new Error("El máximo debe quedar entre el inicio y el final");
+        if (c.cmp(a) > 0) dist(mg, a, c, lineW(a, c, 0, 1));
+        if (b.cmp(c) > 0) dist(mg, c, b, lineW(c, b, 1, 0));
+        break;
+      }
+      case "trapezoidal": {
+        const a = pos("a"), b = pos("b"), m1 = parseMag(L.mag), m2 = parseMag(L.mag2);
+        if (b.cmp(a) <= 0) throw new Error("El final debe quedar después del inicio");
+        if (!m1.coef.isZero()) dist(m1, a, b, lineW(a, b, 1, 0));
+        if (!m2.coef.isZero()) dist(m2, a, b, lineW(a, b, 0, 1));
+        break;
+      }
+      case "parabolica_pico": {
+        const a = pos("a"), c = pos("c"), b = pos("b"), mg = parseMag(L.mag);
+        if (b.cmp(a) <= 0) throw new Error("El final debe quedar después del inicio");
+        if (c.cmp(a) < 0 || c.cmp(b) > 0) throw new Error("El máximo debe quedar entre el inicio y el final");
+        const shape = (t) => (L.curv === "abajo" ? P.add(P.scale(t, new Q(2)), P.scale(P.mul(t, t), new Q(-1))) : P.mul(t, t));
+        if (c.cmp(a) > 0) { const h = c.sub(a); dist(mg, a, c, shape(P.lin(a.neg().div(h), Q1.div(h)))); }
+        if (b.cmp(c) > 0) { const h = b.sub(c); dist(mg, c, b, shape(P.lin(b.div(h), Q1.neg().div(h)))); }
+        break;
+      }
+      case "parabolica": case "complemento": {
+        const a = pos("a"), b = pos("b"), mg = parseMag(L.mag);
+        if (b.cmp(a) <= 0) throw new Error("El final debe quedar después del inicio");
+        const h = b.sub(a);
+        let w = P.scale(P.mul(P.lin(a.neg(), 1), P.lin(b, -1)), new Q(4).div(h.mul(h)));
+        if (L.type === "complemento") w = P.add([Q1], P.scale(w, new Q(-1)));
+        dist(mg, a, b, w);
+        break;
+      }
+      default: throw new Error("Tipo de carga desconocido");
+    }
     return out;
   }
 
-  function nearestIndex(arr, x) {
-    let best = 0;
-    for (let i = 1; i < arr.length; i += 1) if (Math.abs(arr[i] - x) < Math.abs(arr[best] - x)) best = i;
-    return best;
+  // Momento (respecto a la sección x) de la carga elemental unitaria situada a la izquierda; se resta.
+  function MlSeg(ld, s, e) {
+    if (ld.kind === "point") return s.cmp(ld.a) >= 0 ? P.lin(ld.a.neg(), 1) : [Q0];
+    if (ld.kind === "moment") return s.cmp(ld.a) >= 0 ? [new Q(-1)] : [Q0];
+    if (e.cmp(ld.a) <= 0) return [Q0];
+    const F = P.integ(ld.w), G = P.integ(P.mul(XP, ld.w));
+    if (s.cmp(ld.b) >= 0) {
+      const Fab = P.ev(F, ld.b).sub(P.ev(F, ld.a)), Gab = P.ev(G, ld.b).sub(P.ev(G, ld.a));
+      return P.lin(Gab.neg(), Fab);
+    }
+    const Fa = P.ev(F, ld.a), Ga = P.ev(G, ld.a);
+    return P.add(P.mul(XP, P.add(F, [Fa.neg()])), P.scale(P.add(G, [Ga.neg()]), new Q(-1)));
+  }
+  function MlAt1(ld) {
+    if (ld.kind === "point") return Q1.sub(ld.a);
+    if (ld.kind === "moment") return new Q(-1);
+    const F = P.integ(ld.w), G = P.integ(P.mul(XP, ld.w));
+    return P.ev(F, ld.b).sub(P.ev(F, ld.a)).sub(P.ev(G, ld.b).sub(P.ev(G, ld.a)));
+  }
+  function totalForce(ld) { return ld.kind === "point" ? Q1 : ld.kind === "moment" ? Q0 : P.defint(ld.w, ld.a, ld.b); }
+  // Momento respecto a A (antihorario +) de la carga unitaria
+  function momentAboutA(ld) {
+    if (ld.kind === "point") return ld.a.neg();
+    if (ld.kind === "moment") return new Q(-1);
+    return P.defint(P.mul(XP, ld.w), ld.a, ld.b).neg();
   }
 
-  // Gauss con pivoteo parcial y escalamiento diagonal (Jacobi).
-  function solveLinear(A, b) {
-    const n = b.length;
-    if (!n) return [];
-    const s = A.map((row, i) => 1 / Math.sqrt(Math.abs(row[i]) || 1));
-    const M = A.map((row, i) => Array.from(row, (v, j) => v * s[i] * s[j]));
-    const y = Array.from(b, (v, i) => v * s[i]);
-    for (let k = 0; k < n; k += 1) {
-      let p = k;
-      for (let i = k + 1; i < n; i += 1) if (Math.abs(M[i][k]) > Math.abs(M[p][k])) p = i;
-      if (M[p][k] === 0) throw new Error("Matriz singular");
-      if (p !== k) { [M[k], M[p]] = [M[p], M[k]]; [y[k], y[p]] = [y[p], y[k]]; }
-      for (let i = k + 1; i < n; i += 1) {
-        const f = M[i][k] / M[k][k];
-        if (f === 0) continue;
-        for (let j = k; j < n; j += 1) M[i][j] -= f * M[k][j];
-        y[i] -= f * y[k];
-      }
-    }
-    const z = new Array(n).fill(0);
-    for (let i = n - 1; i >= 0; i -= 1) {
-      let acc = y[i];
-      for (let j = i + 1; j < n; j += 1) acc -= M[i][j] * z[j];
-      z[i] = acc / M[i][i];
-    }
-    return z.map((v, i) => v * s[i]);
+  function uniqQ(arr) {
+    const s = arr.slice().sort((a, b) => a.cmp(b));
+    const out = [];
+    for (const q of s) if (!out.length || out[out.length - 1].cmp(q) !== 0) out.push(q);
+    return out;
   }
+  const idxQ = (arr, q) => arr.findIndex((v) => v.cmp(q) === 0);
 
-  // Rango y un vector del espacio nulo (para detectar mecanismos).
-  function nullspace(rows, m) {
+  // Gauss-Jordan exacto: rango y un vector del espacio nulo
+  function nullspaceQ(rows, m) {
     const A = rows.map((r) => r.slice());
     const piv = [];
     let r = 0;
     for (let c = 0; c < m && r < A.length; c += 1) {
-      let p = r;
-      for (let i = r + 1; i < A.length; i += 1) if (Math.abs(A[i][c]) > Math.abs(A[p][c])) p = i;
-      if (Math.abs(A[p][c]) < 1e-9) continue;
+      let p = -1;
+      for (let i = r; i < A.length; i += 1) if (!A[i][c].isZero()) { p = i; break; }
+      if (p < 0) continue;
       [A[r], A[p]] = [A[p], A[r]];
       const pv = A[r][c];
-      for (let j = 0; j < m; j += 1) A[r][j] /= pv;
+      A[r] = A[r].map((v) => v.div(pv));
       for (let i = 0; i < A.length; i += 1) {
-        if (i === r) continue;
+        if (i === r || A[i][c].isZero()) continue;
         const f = A[i][c];
-        if (f) for (let j = 0; j < m; j += 1) A[i][j] -= f * A[r][j];
+        A[i] = A[i].map((v, j) => v.sub(f.mul(A[r][j])));
       }
-      piv.push(c);
-      r += 1;
+      piv.push(c); r += 1;
     }
     if (piv.length === m) return { rank: m, vec: null };
     let free = 0;
     while (piv.includes(free)) free += 1;
-    const vec = new Array(m).fill(0);
-    vec[free] = 1;
-    piv.forEach((c, i) => { vec[c] = -A[i][free]; });
+    const vec = new Array(m).fill(Q0);
+    vec[free] = Q1;
+    piv.forEach((c, i) => { vec[c] = A[i][free].neg(); });
     return { rank: piv.length, vec };
   }
 
-  // Cada tramo entre articulaciones se trata como cuerpo rígido: v(x) = a + b·x/L.
-  function kinematicCheck(model) {
-    const L = model.L, tol = 1e-9 * L;
-    const hx = model.hinges.map((h) => h.x).sort((a, b) => a - b);
-    const bounds = [0, ...hx, L];
+  // Cada tramo entre articulaciones es un cuerpo rígido: v(x) = a + b·x
+  function kinematicQ(supports, hinges) {
+    const hx = uniqQ(hinges.map((h) => h.x));
+    const bounds = [Q0, ...hx, Q1];
     const nseg = bounds.length - 1, m = 2 * nseg;
-    const segFor = (x) => { for (let s = 0; s < nseg; s += 1) if (x <= bounds[s + 1] + tol) return s; return nseg - 1; };
+    const segFor = (x) => { for (let s = 0; s < nseg; s += 1) if (x.cmp(bounds[s + 1]) <= 0) return s; return nseg - 1; };
+    const zero = () => new Array(m).fill(Q0);
     const rows = [];
-    for (const sup of model.supports) {
+    for (const sup of supports) {
       const info = SUPPORT_INFO[sup.type];
       const s = segFor(sup.x);
-      if (info.v) { const row = new Array(m).fill(0); row[2 * s] = 1; row[2 * s + 1] = sup.x / L; rows.push(row); }
-      if (info.th) { const row = new Array(m).fill(0); row[2 * s + 1] = 1; rows.push(row); }
+      if (info.v) { const row = zero(); row[2 * s] = Q1; row[2 * s + 1] = sup.x; rows.push(row); }
+      if (info.th) { const row = zero(); row[2 * s + 1] = Q1; rows.push(row); }
     }
     hx.forEach((x, k) => {
-      const row = new Array(m).fill(0);
-      row[2 * k] = 1; row[2 * k + 1] = x / L; row[2 * k + 2] = -1; row[2 * k + 3] = -x / L;
+      const row = zero();
+      row[2 * k] = Q1; row[2 * k + 1] = x; row[2 * k + 2] = new Q(-1); row[2 * k + 3] = x.neg();
       rows.push(row);
     });
-    const { rank, vec } = nullspace(rows, m);
+    const { rank, vec } = nullspaceQ(rows, m);
     if (rank === m) return { stable: true };
     const moving = [];
     for (let s = 0; s < nseg; s += 1) {
-      if (Math.abs(vec[2 * s]) + Math.abs(vec[2 * s + 1]) > 1e-7) {
+      if (!vec[2 * s].isZero() || !vec[2 * s + 1].isZero()) {
         const last = moving[moving.length - 1];
-        if (last && Math.abs(last[1] - bounds[s]) <= tol) last[1] = bounds[s + 1];
+        if (last && last[1].cmp(bounds[s]) === 0) last[1] = bounds[s + 1];
         else moving.push([bounds[s], bounds[s + 1]]);
       }
     }
     return { stable: false, moving };
   }
 
-  function classify(model) {
+  function classify(supports, hinges) {
     let r = 0, rv = 0, nH = 0;
-    for (const s of model.supports) {
-      const i = SUPPORT_INFO[s.type];
-      r += i.r; rv += i.v + i.th; nH += i.h;
-    }
-    const c = model.hinges.length;
+    for (const s of supports) { const i = SUPPORT_INFO[s.type]; r += i.r; rv += i.v + i.th; nH += i.h; }
+    const c = hinges.length;
     return { r, rv, nH, c, GI: r - 3 - c, GIv: rv - 2 - c, hasH: nH > 0 };
   }
 
-  function binom(n, k) { let r = 1; for (let i = 1; i <= k; i += 1) r = r * (n - k + i) / i; return r; }
-  function shiftPoly(c, a) {
-    const d = new Array(c.length).fill(0);
-    for (let n = 0; n < c.length; n += 1) for (let k = 0; k <= n; k += 1) d[k] += c[n] * binom(n, k) * Math.pow(-a, n - k);
-    return d;
+  // A x = B (varias columnas), exacto
+  function solveMulti(A, B) {
+    const n = A.length, k = B[0] ? B[0].length : 0;
+    const M = A.map((r, i) => [...r, ...B[i]]);
+    for (let c = 0; c < n; c += 1) {
+      let p = -1;
+      for (let r = c; r < n; r += 1) if (!M[r][c].isZero()) { p = r; break; }
+      if (p < 0) throw new Error("Sistema singular");
+      [M[c], M[p]] = [M[p], M[c]];
+      const pv = M[c][c];
+      M[c] = M[c].map((v) => v.div(pv));
+      for (let r = 0; r < n; r += 1) {
+        if (r === c || M[r][c].isZero()) continue;
+        const f = M[r][c];
+        M[r] = M[r].map((v, j) => v.sub(f.mul(M[c][j])));
+      }
+    }
+    return M.map((r) => r.slice(n, n + k));
   }
 
-  // Raíces reales de A τ² + B τ + C = 0
-  function quadRoots(A, B, C) {
-    const sc = Math.max(Math.abs(A), Math.abs(B), Math.abs(C));
-    if (sc === 0) return [];
-    if (Math.abs(A) <= 1e-12 * sc) return Math.abs(B) > 1e-12 * sc ? [-C / B] : [];
-    const disc = B * B - 4 * A * C;
-    if (disc < 0) return [];
-    const q = -0.5 * (B + (B >= 0 ? 1 : -1) * Math.sqrt(disc));
-    const out = [q / A];
-    if (q !== 0) out.push(C / q);
-    return out;
+  // Funciones de forma de Hermite como polinomios en la coordenada global ξ
+  function hermite(xa, l) {
+    const t = P.lin(xa.neg().div(l), Q1.div(l));
+    const t2 = P.mul(t, t), t3 = P.mul(t2, t);
+    const N1 = P.add(P.add([Q1], P.scale(t2, new Q(-3))), P.scale(t3, new Q(2)));
+    const N2 = P.scale(P.add(P.add(t, P.scale(t2, new Q(-2))), t3), l);
+    const N3 = P.add(P.scale(t2, new Q(3)), P.scale(t3, new Q(-2)));
+    const N4 = P.scale(P.add(P.scale(t2, new Q(-1)), t3), l);
+    return [N1, N2, N3, N4];
   }
 
-  function solveBeam(model) {
-    const L = model.L;
-    const tol = 1e-9 * L;
-    const kin = kinematicCheck(model);
-    if (!kin.stable) return { ok: false, mechanism: kin };
+  // supports: [{label, x:Q, type}], hinges: [{label, x:Q}], elems: cargas elementales
+  function solveBeamExact(supports, hinges, elems) {
+    const kin = kinematicQ(supports, hinges);
+    if (!kin.stable) return { ok: false, moving: kin.moving };
+    const active = supports.filter((s) => s.type !== "libre");
 
-    const active = model.supports.filter((s) => s.type !== "libre");
-    const dists = model.loads.filter((l) => l.kind === "dist");
-    const wAt = (ld, x) => ld.w1 + (ld.w2 - ld.w1) * (x - ld.x1) / (ld.x2 - ld.x1);
-
-    // ---- Método de rigidez: nodos en extremos, apoyos y articulaciones
-    const xs = uniqueSorted([0, L, ...active.map((s) => s.x), ...model.hinges.map((h) => h.x)], tol);
-    const hingeNodes = new Set(model.hinges.map((h) => nearestIndex(xs, h.x)));
+    const xs = uniqQ([Q0, Q1, ...active.map((s) => s.x), ...hinges.map((h) => h.x)]);
+    const hingeIdx = new Set(hinges.map((h) => idxQ(xs, h.x)));
     let nd = 0;
     const nodes = xs.map((x, i) => {
       const n = { x, v: nd++ };
-      if (hingeNodes.has(i)) { n.thL = nd++; n.thR = nd++; } else { n.thL = n.thR = nd++; }
+      if (hingeIdx.has(i)) { n.thL = nd++; n.thR = nd++; } else { n.thL = n.thR = nd++; }
       return n;
     });
-    const K = Array.from({ length: nd }, () => new Float64Array(nd));
-    const F = new Float64Array(nd);
-    const elems = [];
+    const K = Array.from({ length: nd }, () => new Array(nd).fill(Q0));
+    const els = [];
     for (let e = 0; e < xs.length - 1; e += 1) {
-      const l = xs[e + 1] - xs[e];
+      const xa = xs[e], xb = xs[e + 1], l = xb.sub(xa), l2 = l.mul(l), l3 = l2.mul(l);
       const dofs = [nodes[e].v, nodes[e].thR, nodes[e + 1].v, nodes[e + 1].thL];
-      const l2 = l * l, l3 = l2 * l;
-      const k = [
-        [12 / l3, 6 / l2, -12 / l3, 6 / l2],
-        [6 / l2, 4 / l, -6 / l2, 2 / l],
-        [-12 / l3, -6 / l2, 12 / l3, -6 / l2],
-        [6 / l2, 2 / l, -6 / l2, 4 / l],
-      ];
-      for (let i = 0; i < 4; i += 1) for (let j = 0; j < 4; j += 1) K[dofs[i]][dofs[j]] += k[i][j];
-      elems.push({ xa: xs[e], xb: xs[e + 1], l, dofs });
+      const a = new Q(12).div(l3), b = new Q(6).div(l2), c = new Q(4).div(l), d = new Q(2).div(l);
+      const k = [[a, b, a.neg(), b], [b, c, b.neg(), d], [a.neg(), b.neg(), a, b.neg()], [b, d, b.neg(), c]];
+      for (let i = 0; i < 4; i += 1) for (let j = 0; j < 4; j += 1) K[dofs[i]][dofs[j]] = K[dofs[i]][dofs[j]].add(k[i][j]);
+      const N = hermite(xa, l);
+      els.push({ xa, xb, l, dofs, N, dN: N.map((p) => P.deriv(p)) });
     }
-    const elemAt = (x) => elems.find((el) => x >= el.xa - tol && x <= el.xb + tol) || elems[elems.length - 1];
-    const hermite = (s, l) => { const t = s / l; return [1 - 3 * t * t + 2 * t ** 3, l * (t - 2 * t * t + t ** 3), 3 * t * t - 2 * t ** 3, l * (-t * t + t ** 3)]; };
-    const hermiteD = (s, l) => { const t = s / l; return [(-6 * t + 6 * t * t) / l, 1 - 4 * t + 3 * t * t, (6 * t - 6 * t * t) / l, -2 * t + 3 * t * t]; };
-    const gauss = [[0.5 - Math.sqrt(0.15), 5 / 18], [0.5, 8 / 18], [0.5 + Math.sqrt(0.15), 5 / 18]];
+    const elemAt = (x) => els.find((el) => el.xa.cmp(x) <= 0 && x.cmp(el.xb) <= 0) || els[els.length - 1];
 
-    for (const ld of model.loads) {
-      if (ld.kind === "point") {
-        const el = elemAt(ld.x);
-        const N = hermite(Math.min(Math.max(ld.x - el.xa, 0), el.l), el.l);
-        N.forEach((n, i) => { F[el.dofs[i]] -= ld.P * n; });
-      } else if (ld.kind === "moment") {
-        const el = elemAt(ld.x);
-        const dN = hermiteD(Math.min(Math.max(ld.x - el.xa, 0), el.l), el.l);
-        dN.forEach((n, i) => { F[el.dofs[i]] += ld.C * n; });
-      } else {
-        for (const el of elems) {
-          const a = Math.max(ld.x1, el.xa), b = Math.min(ld.x2, el.xb);
-          if (b - a <= tol) continue;
-          for (const [g, wg] of gauss) {
-            const x = a + g * (b - a);
-            const N = hermite(x - el.xa, el.l);
-            const q = wAt(ld, x);
-            N.forEach((n, i) => { F[el.dofs[i]] -= wg * (b - a) * q * n; });
+    // Agrupar por letra y potencia de L
+    const gmap = new Map();
+    for (const e of elems) {
+      const key = `${e.sym}|${e.n}`;
+      if (!gmap.has(key)) gmap.set(key, { sym: e.sym, n: e.n, elems: [] });
+      gmap.get(key).elems.push(e);
+    }
+    const groups = [...gmap.values()];
+
+    const Fs = groups.map((g) => {
+      const F = new Array(nd).fill(Q0);
+      for (const e of g.elems) {
+        if (e.kind === "point") {
+          const el = elemAt(e.a);
+          el.N.forEach((p, i) => { F[el.dofs[i]] = F[el.dofs[i]].sub(e.coef.mul(P.ev(p, e.a))); });
+        } else if (e.kind === "moment") {
+          const el = elemAt(e.a), C = e.coef.neg();
+          el.dN.forEach((p, i) => { F[el.dofs[i]] = F[el.dofs[i]].add(C.mul(P.ev(p, e.a))); });
+        } else {
+          for (const el of els) {
+            const lo = e.a.cmp(el.xa) > 0 ? e.a : el.xa, hi = e.b.cmp(el.xb) < 0 ? e.b : el.xb;
+            if (hi.cmp(lo) <= 0) continue;
+            el.N.forEach((p, i) => { F[el.dofs[i]] = F[el.dofs[i]].sub(e.coef.mul(P.defint(P.mul(p, e.w), lo, hi))); });
           }
         }
       }
-    }
+      return F;
+    });
 
     const fixed = new Set();
     for (const s of active) {
-      const n = nodes[nearestIndex(xs, s.x)];
-      const info = SUPPORT_INFO[s.type];
+      const n = nodes[idxQ(xs, s.x)], info = SUPPORT_INFO[s.type];
       if (info.v) fixed.add(n.v);
       if (info.th) fixed.add(n.thL);
     }
     const free = [];
     for (let i = 0; i < nd; i += 1) if (!fixed.has(i)) free.push(i);
-    const df = solveLinear(free.map((i) => free.map((j) => K[i][j])), free.map((i) => F[i]));
-    const d = new Float64Array(nd);
-    free.forEach((i, k) => { d[i] = df[k]; });
-    const reactionAt = (dof) => { let r = -F[dof]; for (let j = 0; j < nd; j += 1) r += K[dof][j] * d[j]; return r; };
-    const reactions = model.supports.map((s) => {
-      const info = SUPPORT_INFO[s.type];
-      if (s.type === "libre") return { ...s, Ry: null, Mr: null };
-      const n = nodes[nearestIndex(xs, s.x)];
-      return { ...s, Ry: info.v ? reactionAt(n.v) : null, Mr: info.th ? reactionAt(n.thL) : null };
+    const ds = groups.map(() => new Array(nd).fill(Q0));
+    if (free.length && groups.length) {
+      const sol = solveMulti(free.map((i) => free.map((j) => K[i][j])), free.map((i) => groups.map((g, gi) => Fs[gi][i])));
+      free.forEach((i, r) => groups.forEach((g, gi) => { ds[gi][i] = sol[r][gi]; }));
+    }
+
+    const bps = uniqQ([...xs, ...elems.flatMap((e) => (e.kind === "dist" ? [e.a, e.b] : [e.a]))]);
+
+    groups.forEach((g, gi) => {
+      const d = ds[gi], F = Fs[gi];
+      const R = (dof) => { let r = F[dof].neg(); for (let j = 0; j < nd; j += 1) if (!d[j].isZero()) r = r.add(K[dof][j].mul(d[j])); return r; };
+      g.reactions = supports.map((s) => {
+        if (s.type === "libre") return { label: s.label, x: s.x, Ry: null, Mr: null };
+        const info = SUPPORT_INFO[s.type], n = nodes[idxQ(xs, s.x)];
+        return { label: s.label, x: s.x, Ry: info.v ? R(n.v) : null, Mr: info.th ? R(n.thL) : null };
+      });
+      g.mSegs = [];
+      for (let i = 0; i < bps.length - 1; i += 1) {
+        const s = bps[i], e = bps[i + 1];
+        let poly = [Q0];
+        for (const r of g.reactions) {
+          if (r.x.cmp(s) > 0) continue;
+          if (r.Ry) poly = P.add(poly, P.scale(P.lin(r.x.neg(), 1), r.Ry));
+          if (r.Mr) poly = P.add(poly, [r.Mr.neg()]);
+        }
+        for (const el of g.elems) poly = P.add(poly, P.scale(MlSeg(el, s, e), el.coef.neg()));
+        g.mSegs.push(poly);
+      }
+      g.vSegs = g.mSegs.map((p) => P.deriv(p));
+      // Verificación exacta
+      let Fy = Q0, MA = Q0, endM = Q0;
+      for (const r of g.reactions) {
+        if (r.Ry) { Fy = Fy.add(r.Ry); MA = MA.add(r.Ry.mul(r.x)); endM = endM.add(r.Ry.mul(Q1.sub(r.x))); }
+        if (r.Mr) { MA = MA.add(r.Mr); endM = endM.sub(r.Mr); }
+      }
+      for (const el of g.elems) {
+        Fy = Fy.sub(el.coef.mul(totalForce(el)));
+        MA = MA.add(el.coef.mul(momentAboutA(el)));
+        endM = endM.sub(el.coef.mul(MlAt1(el)));
+      }
+      g.check = { Fy, MA, endM };
+      g.hingeM = hinges.map((h) => {
+        const i = Math.max(0, bps.findIndex((b, k) => k < bps.length - 1 && b.cmp(h.x) <= 0 && h.x.cmp(bps[k + 1]) < 0));
+        return P.ev(g.mSegs[i], h.x);
+      });
     });
 
-    // ---- Fuerzas internas por equilibrio, de izquierda a derecha
-    const bx = uniqueSorted([
-      0, L, ...active.map((s) => s.x), ...model.hinges.map((h) => h.x),
-      ...model.loads.flatMap((ld) => (ld.kind === "dist" ? [ld.x1, ld.x2] : [ld.x])),
-    ], tol);
-    const dV = new Float64Array(bx.length), dM = new Float64Array(bx.length);
-    for (const r of reactions) {
-      if (r.Ry != null) dV[nearestIndex(bx, r.x)] += r.Ry;
-      if (r.Mr != null) dM[nearestIndex(bx, r.x)] -= r.Mr;
-    }
-    for (const ld of model.loads) {
-      if (ld.kind === "point") dV[nearestIndex(bx, ld.x)] -= ld.P;
-      if (ld.kind === "moment") dM[nearestIndex(bx, ld.x)] -= ld.C;
-    }
-    const segs = [];
-    const breaks = [];
-    let V = 0, M = 0;
-    for (let i = 0; i < bx.length - 1; i += 1) {
-      const Vl = V, Ml = M;
-      V += dV[i]; M += dM[i];
-      breaks.push({ x: bx[i], Vl, Vr: V, Ml, Mr: M });
-      const xa = bx[i], xb = bx[i + 1], l = xb - xa;
-      let qa = 0, qb = 0;
-      for (const ld of dists) if (ld.x1 <= xa + tol && ld.x2 >= xb - tol) { qa += wAt(ld, xa); qb += wAt(ld, xb); }
-      const k = (qb - qa) / l;
-      const Va = V, Ma = M;
-      const seg = {
-        xa, xb, l, qa, qb, k, Va, Ma,
-        Vt: (t) => Va - qa * t - k * t * t / 2,
-        Mt: (t) => Ma + Va * t - qa * t * t / 2 - k * t * t * t / 6,
-      };
-      seg.Vb = seg.Vt(l); seg.Mb = seg.Mt(l);
-      seg.vPoly = shiftPoly([Va, -qa, -k / 2], xa);
-      seg.mPoly = shiftPoly([Ma, Va, -qa / 2, -k / 6], xa);
-      segs.push(seg);
-      V = seg.Vb; M = seg.Mb;
-    }
-    {
-      const Vl = V, Ml = M;
-      V += dV[bx.length - 1]; M += dM[bx.length - 1];
-      breaks.push({ x: L, Vl, Vr: V, Ml, Mr: M });
-    }
+    return { ok: true, bps, groups };
+  }
 
-    const segAt = (x, side) => {
-      for (const s of segs) {
-        if (side === "left" ? (x > s.xa + tol && x <= s.xb + tol) : (x >= s.xa - tol && x < s.xb - tol)) {
-          return [s, Math.min(Math.max(x - s.xa, 0), s.l)];
-        }
+  // Aproximación racional (fracción continua) para reconocer extremos exactos
+  function bestRational(x, maxDen = 5000) {
+    let h0 = 0, h1 = 1, k0 = 1, k1 = 0, v = x;
+    for (let i = 0; i < 40; i += 1) {
+      const a = Math.floor(v), h2 = a * h1 + h0, k2 = a * k1 + k0;
+      if (k2 > maxDen) break;
+      h0 = h1; h1 = h2; k0 = k1; k1 = k2;
+      if (Math.abs(v - a) < 1e-12) break;
+      v = 1 / (v - a);
+    }
+    return new Q(h1, k1);
+  }
+  function rootsIn(pf, s, e) {
+    const N = 400, out = [];
+    let xp = s, fp = P.evf(pf, s);
+    for (let i = 1; i <= N; i += 1) {
+      const x = s + (e - s) * i / N, f = P.evf(pf, x);
+      if (fp === 0 && i > 1) out.push(xp);
+      else if (fp * f < 0) {
+        let lo = xp, hi = x, flo = fp;
+        for (let k = 0; k < 80; k += 1) { const m = (lo + hi) / 2, fm = P.evf(pf, m); if (flo * fm <= 0) hi = m; else { lo = m; flo = fm; } }
+        out.push((lo + hi) / 2);
       }
-      if (x <= segs[0].xa + tol) return [segs[0], 0];
-      const last = segs[segs.length - 1];
-      return [last, last.l];
-    };
-    const evalV = (x, side = "right") => { const [s, t] = segAt(x, side); return s.Vt(t); };
-    const evalM = (x, side = "right") => { const [s, t] = segAt(x, side); return s.Mt(t); };
-
-    // ---- Extremos
-    const mCand = [], vCand = [], interior = [];
-    for (const s of segs) {
-      mCand.push({ x: s.xa, v: s.Ma }, { x: s.xb, v: s.Mb });
-      vCand.push({ x: s.xa, v: s.Va }, { x: s.xb, v: s.Vb });
-      // V(τ·l) = 0  →  (−k l²/2) τ² + (−qa l) τ + Va = 0
-      for (const tau of quadRoots(-s.k * s.l * s.l / 2, -s.qa * s.l, s.Va)) {
-        if (tau > 1e-7 && tau < 1 - 1e-7) { const t = tau * s.l; const e = { x: s.xa + t, v: s.Mt(t) }; mCand.push(e); interior.push(e); }
-      }
-      if (Math.abs(s.k) > 1e-14) {
-        const t = -s.qa / s.k;
-        if (t > 1e-9 * s.l && t < s.l * (1 - 1e-9)) vCand.push({ x: s.xa + t, v: s.Vt(t) });
-      }
+      xp = x; fp = f;
     }
-    const pick = (arr, better) => arr.reduce((b, c) => (better(c.v, b.v) ? c : b), arr[0]);
-    const mMax = pick(mCand, (a, b) => a > b + 1e-12), mMin = pick(mCand, (a, b) => a < b - 1e-12);
-    const vMax = pick(vCand, (a, b) => a > b + 1e-12), vMin = pick(vCand, (a, b) => a < b - 1e-12);
-
-    // ---- Verificación global
-    let sumFy = 0, sumMA = 0, scale = 0;
-    for (const r of reactions) {
-      if (r.Ry != null) { sumFy += r.Ry; sumMA += r.Ry * r.x; scale += Math.abs(r.Ry); }
-      if (r.Mr != null) { sumMA += r.Mr; }
-    }
-    for (const ld of model.loads) {
-      if (ld.kind === "point") { sumFy -= ld.P; sumMA -= ld.P * ld.x; scale += Math.abs(ld.P); }
-      else if (ld.kind === "moment") { sumMA += ld.C; scale += Math.abs(ld.C) / L; }
-      else {
-        const l = ld.x2 - ld.x1;
-        for (const [g, wg] of gauss) {
-          const x = ld.x1 + g * l, q = wAt(ld, x);
-          sumFy -= wg * l * q; sumMA -= wg * l * q * x; scale += wg * l * Math.abs(q);
-        }
-      }
-    }
-    const hingeM = model.hinges.map((h) => ({ ...h, M: evalM(h.x) }));
-
-    // ---- Ecuaciones por tramo (une tramos con el mismo polinomio)
-    const same = (a, b) => {
-      const sc = Math.max(1, ...a.map(Math.abs), ...b.map(Math.abs));
-      return a.every((v, i) => Math.abs(v - b[i]) <= 1e-9 * sc);
-    };
-    const pieces = [];
-    for (const s of segs) {
-      const last = pieces[pieces.length - 1];
-      if (last && same(last.vPoly, s.vPoly) && same(last.mPoly, s.mPoly)) last.xb = s.xb;
-      else pieces.push({ xa: s.xa, xb: s.xb, vPoly: s.vPoly, mPoly: s.mPoly });
-    }
-
-    return {
-      ok: true, reactions, segs, breaks, pieces, evalV, evalM,
-      mMax, mMin, vMax, vMin, interior, hingeM,
-      check: { Fy: sumFy, MA: sumMA, scale: Math.max(1, scale), endV: V, endM: M },
-    };
+    return out.filter((r) => r > s + 1e-9 && r < e - 1e-9);
   }
   // ===== SOLVER-END =====
 
   // ===== Interfaz =====
   const $ = (id) => document.getElementById(id);
-  const STORE = "analizador-vigas:v1";
+  const STORE = "analizador-vigas:v2";
+  const minus = (s) => s.replace(/-/g, "−");
   const nfCache = {};
-  const nf = (min, max = min) => (nfCache[`${min}-${max}`] = nfCache[`${min}-${max}`] || new Intl.NumberFormat("es-CO", { minimumFractionDigits: min, maximumFractionDigits: max }));
-  const clean = (v) => (Math.abs(v) < 5e-10 ? 0 : v);
-  const fmt = (v, d = 2) => nf(d).format(clean(v)).replace("-", "−");
-  const fmtS = (v) => nf(0, 2).format(clean(v)).replace("-", "−");
-  const signed = (v, d = 2) => (clean(v) > 0 ? "+" : "") + fmt(v, d);
-  const parseNum = (raw) => { const s = String(raw ?? "").trim().replace(",", "."); return s === "" ? NaN : Number(s); };
-  const rawNum = (v) => String(Math.round(v * 1e6) / 1e6);
-  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const r1 = (v) => Math.round(v * 10) / 10;
-  const fmtCoef = (a) => {
-    if (a >= 100) return nf(2).format(a);
-    if (a >= 1) return nf(3).format(a);
-    if (a >= 0.01) return nf(4).format(a);
-    return new Intl.NumberFormat("es-CO", { maximumSignificantDigits: 3 }).format(a);
+  const nf = (key, opts) => (nfCache[key] = nfCache[key] || new Intl.NumberFormat("es-CO", { useGrouping: false, ...opts }));
+  const fmtSig = (v, sig = 4) => {
+    if (!Number.isFinite(v)) return "—";
+    if (Math.abs(v) < 1e-12) return "0";
+    const a = Math.abs(v);
+    if (a >= 1e7 || a < 1e-4) return minus(v.toExponential(3).replace(".", ","));
+    return minus(nf(`s${sig}`, { maximumSignificantDigits: sig }).format(v));
   };
+  const fmtFix = (v, d) => minus(nf(`f${d}`, { minimumFractionDigits: d, maximumFractionDigits: d }).format(Math.abs(v) < 1e-12 ? 0 : v));
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const r1 = (v) => Math.round(v * 10) / 10;
 
-  const TYPE_OPTIONS = [["empotrado", "Empotramiento"], ["articulado", "Articulado (pasador)"], ["rodillo", "Rodillo"], ["guiado", "Empotramiento guiado"], ["libre", "Libre"]];
+  // ---------- Formato de expresiones: coef · letra · L^n · x^k
+  const SUPS = { 2: "²", 3: "³", 4: "⁴", 5: "⁵", 6: "⁶" };
+  const pw = (e) => (e === 1 ? "" : SUPS[e] || `^${e}`);
+  function mono(q, sym, n, k = 0) {
+    const neg = q.n < 0n, a = neg ? -q.n : q.n, b = q.d;
+    const letters = (sym || "") + (n > 0 ? `L${pw(n)}` : "") + (k > 0 ? `x${pw(k)}` : "");
+    const top = (a === 1n && letters ? "" : a.toString()) + letters;
+    const bot = (b === 1n ? "" : b.toString()) + (n < 0 ? `L${pw(-n)}` : "");
+    return { neg, top, bot };
+  }
+  function monoText(q, sym, n, k = 0) {
+    if (q.isZero()) return "0";
+    const m = mono(q, sym, n, k);
+    return (m.neg ? "−" : "") + m.top + (m.bot ? `/${m.bot}` : "");
+  }
+  function unitText(sym, n) { const m = mono(Q1, sym, n); return m.bot ? `${m.top}/${m.bot}` : m.top; }
+  function sumText(terms) {
+    const t = terms.filter((x) => !x.q.isZero());
+    if (!t.length) return "0";
+    return t.map((x, i) => { const s = monoText(x.q, x.sym, x.n, x.k || 0); return i ? (s[0] === "−" ? ` − ${s.slice(1)}` : ` + ${s}`) : s; }).join("");
+  }
+  function sumHTML(terms) {
+    const t = terms.filter((x) => !x.q.isZero());
+    if (!t.length) return "<span>0</span>";
+    return t.map((x, i) => {
+      const m = mono(x.q, x.sym, x.n, x.k || 0);
+      const body = m.bot ? `<span class="frac"><span>${m.top}</span><span>${m.bot}</span></span>` : `<span>${m.top}</span>`;
+      const op = m.neg ? "−" : i ? "+" : "";
+      return (op ? `<span class="op">${op}</span>` : "") + body;
+    }).join("");
+  }
+  function decTerms(terms) {
+    const t = terms.filter((x) => (x.q ? !x.q.isZero() : Math.abs(x.f) > 1e-12));
+    if (!t.length) return "0";
+    return t.map((x, i) => {
+      const v = x.q ? x.q.num() : x.f, u = unitText(x.sym, x.n);
+      const s = `${fmtSig(Math.abs(v), 4)}${u === "1" ? "" : ` ${u}`}`;
+      return (v < 0 ? (i ? " − " : "−") : i ? " + " : "") + s;
+    }).join("");
+  }
+  function posShort(q) { return q.isZero() ? "0" : q.cmp(1) === 0 ? "L" : monoText(q, "", 1); }
+
+  // ---------- Tipos de carga y casos
+  const SUPPORT_OPTIONS = [["empotrado", "Empotramiento"], ["articulado", "Articulado (pasador)"], ["rodillo", "Rodillo"], ["guiado", "Empotramiento guiado"], ["libre", "Libre"]];
   const INNER_OPTIONS = [["rodillo", "Rodillo"], ["articulado", "Articulado"]];
   const options = (list, value) => list.map(([v, t]) => `<option value="${v}"${v === value ? " selected" : ""}>${t}</option>`).join("");
-
+  const TYPES = {
+    puntual: { name: "Puntual", def: { mag: "P", a: "L/2" }, f: [["mag", "Magnitud"], ["a", "Posición x"]] },
+    uniforme: { name: "Uniforme", def: { mag: "W", a: "0", b: "L" }, f: [["mag", "Intensidad"], ["a", "Desde"], ["b", "Hasta"]] },
+    triangular: { name: "Triangular", def: { mag: "W", a: "0", c: "L", b: "L" }, f: [["mag", "Valor máximo"], ["a", "Desde"], ["c", "Máximo en"], ["b", "Hasta"]] },
+    trapezoidal: { name: "Trapezoidal", def: { mag: "W", mag2: "2W", a: "0", b: "L" }, f: [["mag", "w al inicio"], ["mag2", "w al final"], ["a", "Desde"], ["b", "Hasta"]] },
+    parabolica: { name: "Parabólica", def: { mag: "W", a: "0", b: "L" }, f: [["mag", "Máximo (centro)"], ["a", "Desde"], ["b", "Hasta"]] },
+    complemento: { name: "Complemento de parábola", def: { mag: "W", a: "0", b: "L" }, f: [["mag", "Máximo (extremos)"], ["a", "Desde"], ["b", "Hasta"]] },
+    parabolica_pico: { name: "Parabólica con pico", def: { mag: "W", a: "0", c: "L", b: "L", curv: "arriba" }, f: [["mag", "Valor máximo"], ["a", "Desde"], ["c", "Máximo en"], ["b", "Hasta"], ["curv", "Concavidad"]] },
+    momento: { name: "Momento concentrado", def: { mag: "M", a: "L/2", dir: "hor" }, f: [["mag", "Magnitud"], ["a", "Posición x"], ["dir", "Sentido"]] },
+  };
+  const U = (mag, a = "0", b = "L") => ({ type: "uniforme", mag, a, b });
   const PRESETS = [
-    { name: "Empotrada en A y B, con articulación interna", L: "10", A: "empotrado", B: "empotrado", inner: [], hinges: ["3"],
-      loads: [{ kind: "dist", w1: "4", w2: "4", x1: "0", x2: "10" }, { kind: "point", P: "12", x: "6.5" }] },
-    { name: "Empotrada en A y B (la app original)", L: "8", A: "empotrado", B: "empotrado", inner: [], hinges: [],
-      loads: [{ kind: "dist", w1: "4", w2: "4", x1: "0", x2: "8" }, { kind: "point", P: "12", x: "3" }] },
-    { name: "Empotrada en A, rodillo en B", L: "8", A: "empotrado", B: "rodillo", inner: [], hinges: [],
-      loads: [{ kind: "dist", w1: "4", w2: "4", x1: "0", x2: "8" }, { kind: "point", P: "12", x: "3" }] },
-    { name: "Viga Gerber de dos tramos", L: "14", A: "articulado", B: "rodillo", inner: [{ type: "rodillo", x: "6" }], hinges: ["8"],
-      loads: [{ kind: "dist", w1: "3", w2: "3", x1: "0", x2: "14" }, { kind: "point", P: "10", x: "11" }] },
-    { name: "Continua de dos tramos iguales", L: "10", A: "articulado", B: "rodillo", inner: [{ type: "rodillo", x: "5" }], hinges: [],
-      loads: [{ kind: "dist", w1: "4", w2: "4", x1: "0", x2: "10" }] },
-    { name: "Simplemente apoyada con voladizo", L: "8", A: "articulado", B: "libre", inner: [{ type: "rodillo", x: "6" }], hinges: [],
-      loads: [{ kind: "dist", w1: "4", w2: "4", x1: "0", x2: "8" }, { kind: "point", P: "8", x: "8" }] },
-    { name: "Voladizo con carga trapezoidal y momento", L: "6", A: "empotrado", B: "libre", inner: [], hinges: [],
-      loads: [{ kind: "dist", w1: "2", w2: "6", x1: "1", x2: "4" }, { kind: "moment", M: "10", x: "6", sense: "cw" }] },
+    { g: "Con articulaciones o apoyos intermedios", n: "Empotrada en A y B con articulación en L/3", A: "empotrado", B: "empotrado", inner: [], hinges: ["L/3"], loads: [U("W")], ref: "M_A = −WL²/8 · M_B = −WL²/12 (r = 6, c = 1: GI = 2)" },
+    { g: "Con articulaciones o apoyos intermedios", n: "Empotrada en A y B con articulación al centro", A: "empotrado", B: "empotrado", inner: [], hinges: ["L/2"], loads: [U("W")], ref: "Cada mitad trabaja como voladizo: M_A = M_B = −WL²/8 y V = 0 en la articulación" },
+    { g: "Con articulaciones o apoyos intermedios", n: "Viga Gerber: apoyo en L/2, articulación en 3L/4", A: "articulado", B: "rodillo", inner: [{ type: "rodillo", x: "L/2" }], hinges: ["3L/4"], loads: [U("W")], ref: "M_C = −WL²/16 · R_B = WL/8 (isostática)" },
+    { g: "Con articulaciones o apoyos intermedios", n: "Continua de dos tramos iguales", A: "articulado", B: "rodillo", inner: [{ type: "rodillo", x: "L/2" }], hinges: [], loads: [U("W")], ref: "Cada tramo mide L/2: M_C = −WL²/32 · R_C = 5WL/8" },
+    { g: "Con articulaciones o apoyos intermedios", n: "Simplemente apoyada con voladizo", A: "articulado", B: "libre", inner: [{ type: "rodillo", x: "3L/4" }], hinges: [], loads: [U("W")], ref: "Voladizo de L/4: M_C = −WL²/32" },
+    { g: "Vigas empotradas", n: "Uniforme", A: "empotrado", B: "empotrado", loads: [U("W")], ref: "Tabla SIMESA: M_A = M_B = −WL²/12 · M_máx = WL²/24" },
+    { g: "Vigas empotradas", n: "Triangular, máximo en B", A: "empotrado", B: "empotrado", loads: [{ type: "triangular", mag: "W", a: "0", c: "L", b: "L" }], ref: "Tabla SIMESA: M_A = −WL²/30 · M_B = −WL²/20 · M_máx = WL²/46.6 en x = 0.548L" },
+    { g: "Vigas empotradas", n: "Triangular, máximo en el centro", A: "empotrado", B: "empotrado", loads: [{ type: "triangular", mag: "W", a: "0", c: "L/2", b: "L" }], ref: "Tabla SIMESA: M_A = M_B = −5WL²/96 · M_C = WL²/32" },
+    { g: "Vigas empotradas", n: "Triangular invertida (W en los extremos)", A: "empotrado", B: "empotrado", loads: [{ type: "trapezoidal", mag: "W", mag2: "0", a: "0", b: "L/2" }, { type: "trapezoidal", mag: "0", mag2: "W", a: "L/2", b: "L" }], ref: "Tabla SIMESA: M_A = M_B = −WL²/32 · M_C = WL²/96" },
+    { g: "Vigas empotradas", n: "Carga parabólica", A: "empotrado", B: "empotrado", loads: [{ type: "parabolica", mag: "W", a: "0", b: "L" }], ref: "Tabla SIMESA: M_A = M_B = −WL²/15" },
+    { g: "Vigas empotradas", n: "Complemento de parábola", A: "empotrado", B: "empotrado", loads: [{ type: "complemento", mag: "W", a: "0", b: "L" }], ref: "Tabla SIMESA: M_A = M_B = −WL²/60" },
+    { g: "Vigas empotradas", n: "P en el centro", A: "empotrado", B: "empotrado", loads: [{ type: "puntual", mag: "P", a: "L/2" }], ref: "Tabla SIMESA: M_A = M_B = −PL/8 · M_C = PL/8" },
+    { g: "Vigas empotradas", n: "P en a = L/3", A: "empotrado", B: "empotrado", loads: [{ type: "puntual", mag: "P", a: "L/3" }], ref: "Tabla SIMESA: M_A = −Pab²/L² = −4PL/27 · M_B = −2PL/27 · M_C = 8PL/81" },
+    { g: "Vigas empotradas", n: "Dos P a los tercios", A: "empotrado", B: "empotrado", loads: [{ type: "puntual", mag: "P", a: "L/3" }, { type: "puntual", mag: "P", a: "2L/3" }], ref: "Tabla SIMESA: M_A = M_B = −2PL/9 · M_C = M_D = PL/9" },
+    { g: "Vigas empotradas", n: "Dos P en L/4 y 3L/4", A: "empotrado", B: "empotrado", loads: [{ type: "puntual", mag: "P", a: "L/4" }, { type: "puntual", mag: "P", a: "3L/4" }], ref: "Tabla SIMESA: M_A = M_B = −3PL/16 · M_C = M_D = PL/16" },
+    { g: "Simplemente apoyadas", n: "Uniforme", A: "articulado", B: "rodillo", loads: [U("W")], ref: "Tabla SIMESA: M_máx = WL²/8 en x = L/2" },
+    { g: "Simplemente apoyadas", n: "Triangular, máximo en B", A: "articulado", B: "rodillo", loads: [{ type: "triangular", mag: "W", a: "0", c: "L", b: "L" }], ref: "Tabla SIMESA: M_máx = 0.064WL² en x = 0.5774L · R_A = WL/6 · R_B = WL/3" },
+    { g: "Simplemente apoyadas", n: "Triangular, máximo en el centro", A: "articulado", B: "rodillo", loads: [{ type: "triangular", mag: "W", a: "0", c: "L/2", b: "L" }], ref: "Tabla SIMESA: M_máx = WL²/12" },
+    { g: "Simplemente apoyadas", n: "P en el centro", A: "articulado", B: "rodillo", loads: [{ type: "puntual", mag: "P", a: "L/2" }], ref: "Tabla SIMESA: M_máx = PL/4" },
+    { g: "Simplemente apoyadas", n: "Tres P a cuartos de luz", A: "articulado", B: "rodillo", loads: [{ type: "puntual", mag: "P", a: "L/4" }, { type: "puntual", mag: "P", a: "L/2" }, { type: "puntual", mag: "P", a: "3L/4" }], ref: "Tabla SIMESA: M_C = M_E = 3PL/8 · M_D = PL/2 · R_A = R_B = 3P/2" },
+    { g: "Voladizos soportados", n: "Uniforme", A: "empotrado", B: "rodillo", loads: [U("W")], ref: "Tabla SIMESA: M_A = −WL²/8 · M_máx = 9WL²/128 en x = 5L/8" },
+    { g: "Voladizos soportados", n: "Triangular, máximo en el apoyo B", A: "empotrado", B: "rodillo", loads: [{ type: "triangular", mag: "W", a: "0", c: "L", b: "L" }], ref: "Tabla SIMESA: M_A = −7WL²/120 · M_máx = WL²/23.6 en x = 0.671L · R_A = 9WL/40" },
+    { g: "Voladizos soportados", n: "Triangular, máximo en el empotramiento", A: "empotrado", B: "rodillo", loads: [{ type: "triangular", mag: "W", a: "0", c: "0", b: "L" }], ref: "Tabla SIMESA: M_A = −WL²/15 · M_máx = WL²/33.6 en x = 0.553L · R_A = 2WL/5" },
+    { g: "Voladizos soportados", n: "Dos P a los tercios", A: "empotrado", B: "rodillo", loads: [{ type: "puntual", mag: "P", a: "L/3" }, { type: "puntual", mag: "P", a: "2L/3" }], ref: "Tabla SIMESA: M_A = −PL/3 · M_C = PL/9 · M_D = 2PL/9 · R_A = 4P/3" },
+    { g: "Voladizos soportados", n: "Momento M en el apoyo B", A: "empotrado", B: "rodillo", loads: [{ type: "momento", mag: "M", a: "L", dir: "anti" }], ref: "Tabla SIMESA: M_A = −M/2 · R_A = −R_B = 3M/2L" },
+    { g: "Vigas en voladizo", n: "Uniforme en toda la luz", A: "empotrado", B: "libre", loads: [U("W")], ref: "Tabla SIMESA: M_máx = −WL²/2" },
+    { g: "Vigas en voladizo", n: "Triangular, máximo en el empotramiento", A: "empotrado", B: "libre", loads: [{ type: "triangular", mag: "W", a: "0", c: "0", b: "L" }], ref: "Tabla SIMESA: M_máx = −WL²/6" },
+    { g: "Vigas en voladizo", n: "P en el extremo", A: "empotrado", B: "libre", loads: [{ type: "puntual", mag: "P", a: "L" }], ref: "Tabla SIMESA: M_máx = −PL" },
+    { g: "Tarea Mp", n: "Viga 4: parabólica de 0 a W (cóncava hacia arriba)", A: "empotrado", B: "empotrado", loads: [{ type: "parabolica_pico", mag: "W", a: "0", c: "L", b: "L", curv: "arriba" }], ref: "Tarea Mp (etapa elástica): M_A = −WL²/60 · M_B = −WL²/30" },
   ];
 
+  // ---------- Estado
   let uid = 1;
   const nid = () => uid++;
-  function fromPreset(p) {
+  const newLoad = (type, over = {}) => ({ id: nid(), type, ...TYPES[type].def, ...over });
+  function fromPreset(i, keep) {
+    const p = PRESETS[i];
     return {
-      L: p.L, A: p.A, B: p.B, mDown: state ? state.mDown : false,
-      inner: p.inner.map((s) => ({ id: nid(), type: s.type, x: s.x })),
-      hinges: p.hinges.map((x) => ({ id: nid(), x })),
-      loads: p.loads.map((ld) => ({ id: nid(), sense: "cw", ...ld })),
+      A: p.A, B: p.B,
+      inner: (p.inner || []).map((s) => ({ id: nid(), type: s.type, x: s.x })),
+      hinges: (p.hinges || []).map((x) => ({ id: nid(), x })),
+      loads: p.loads.map((l) => newLoad(l.type, l)),
+      vals: keep ? keep.vals : {}, uF: keep ? keep.uF : "kN", uL: keep ? keep.uL : "m",
+      mDown: keep ? keep.mDown : true, ref: i,
     };
   }
   function loadSaved() {
     try {
-      const raw = localStorage.getItem(STORE);
-      if (!raw) return null;
-      const s = JSON.parse(raw);
-      if (!s || typeof s.L !== "string" || !Array.isArray(s.inner) || !Array.isArray(s.hinges) || !Array.isArray(s.loads)) return null;
-      if (!SUPPORT_INFO[s.A] || !SUPPORT_INFO[s.B]) return null;
-      uid = Math.max(1, ...s.inner.map((x) => x.id + 1), ...s.hinges.map((x) => x.id + 1), ...s.loads.map((x) => x.id + 1));
+      const s = JSON.parse(localStorage.getItem(STORE) || "null");
+      if (!s || !Array.isArray(s.inner) || !Array.isArray(s.hinges) || !Array.isArray(s.loads) || !SUPPORT_INFO[s.A] || !SUPPORT_INFO[s.B]) return null;
+      if (s.loads.some((l) => !TYPES[l.type])) return null;
+      s.vals = s.vals || {};
+      uid = Math.max(1, ...[...s.inner, ...s.hinges, ...s.loads].map((o) => (o.id || 0) + 1));
       return s;
     } catch (e) { return null; }
   }
   function persist() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { /* sin almacenamiento */ } }
-
-  let state = null;
-  state = loadSaved() || fromPreset(PRESETS[0]);
-  let lastL = parseNum(state.L);
+  let state = loadSaved() || fromPreset(0, null);
 
   // ---------- Controles
-  function letterOf(i) { return String.fromCharCode(67 + i); }
-  function field(id, value, unit, label, data) {
-    return `<div class="field"><label for="${id}">${label}</label><div class="inp"><input id="${id}" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="${esc(value)}" ${data}><span class="u">${unit}</span></div></div>`;
-  }
-  function renderLists() {
-    $("inp-L").value = state.L;
-    $("sup-A").innerHTML = options(TYPE_OPTIONS, state.A);
-    $("sup-B").innerHTML = options(TYPE_OPTIONS, state.B);
+  const letterOf = (i) => String.fromCharCode(67 + i);
+  const txtField = (id, value, label, data, unit = "") => `<div class="field"><label for="${id}">${label}</label>${unit ? `<div class="inp">` : ""}<input class="txt" id="${id}" type="text" autocomplete="off" spellcheck="false" value="${esc(value)}" ${data}>${unit ? `<span class="u">${unit}</span></div>` : ""}</div>`;
 
+  function renderControls() {
+    $("sup-A").innerHTML = options(SUPPORT_OPTIONS, state.A);
+    $("sup-B").innerHTML = options(SUPPORT_OPTIONS, state.B);
+    $("uF").value = state.uF; $("uL").value = state.uL;
     $("innerList").innerHTML = state.inner.map((s, i) => {
-      const L = letterOf(i), data = (f) => `data-list="inner" data-id="${s.id}" data-field="${f}"`;
+      const L = letterOf(i), d = (f) => `data-list="inner" data-id="${s.id}" data-k="${f}"`;
       return `<div class="row">
-        <div class="field"><label for="inner-${s.id}-type">Apoyo ${L}</label><select id="inner-${s.id}-type" ${data("type")}>${options(INNER_OPTIONS, s.type)}</select></div>
-        ${field(`inner-${s.id}-x`, s.x, "m", "Posición x", data("x"))}
-        <button type="button" class="btn-x" data-action="remove" data-list="inner" data-id="${s.id}" aria-label="Quitar apoyo ${L}" title="Quitar apoyo ${L}">×</button>
-      </div>`;
+        <div class="field"><label for="in${s.id}-type">Apoyo ${L}</label><select id="in${s.id}-type" ${d("type")}>${options(INNER_OPTIONS, s.type)}</select></div>
+        ${txtField(`in${s.id}-x`, s.x, "Posición x", d("x"))}
+        <button type="button" class="btn-x" data-action="remove" data-list="inner" data-id="${s.id}" aria-label="Quitar apoyo ${L}" title="Quitar apoyo ${L}">×</button></div>`;
     }).join("");
-
     $("hingeList").innerHTML = state.hinges.map((h, i) => `<div class="row hinge">
-        ${field(`hinge-${h.id}-x`, h.x, "m", `Articulación H${i + 1}, posición x`, `data-list="hinges" data-id="${h.id}" data-field="x"`)}
-        <button type="button" class="btn-x" data-action="remove" data-list="hinges" data-id="${h.id}" aria-label="Quitar articulación H${i + 1}" title="Quitar articulación">×</button>
-      </div>`).join("");
-
-    let nP = 0, nQ = 0, nM = 0;
-    const loadsHTML = state.loads.map((ld) => {
-      const data = (f) => `data-list="loads" data-id="${ld.id}" data-field="${f}"`;
-      const id = (f) => `load-${ld.id}-${f}`;
-      const remove = (name) => `<button type="button" class="btn-x" data-action="remove" data-list="loads" data-id="${ld.id}" aria-label="Quitar ${name}" title="Quitar carga">×</button>`;
-      if (ld.kind === "point") {
-        nP += 1; const name = `P${nP}`;
-        return `<div class="load"><div class="load-head"><span class="load-tag"><b>${name}</b>Carga puntual</span><div class="load-tools">${remove(name)}</div></div>
-          <div class="grid2">${field(id("P"), ld.P, "kN", "Magnitud P (↓ +)", data("P"))}${field(id("x"), ld.x, "m", "Posición x", data("x"))}</div></div>`;
-      }
-      if (ld.kind === "dist") {
-        nQ += 1; const name = `q${nQ}`;
-        return `<div class="load"><div class="load-head"><span class="load-tag"><b>${name}</b>Carga distribuida</span><div class="load-tools"><button type="button" class="link-btn" data-action="full-span" data-id="${ld.id}">Toda la luz</button>${remove(name)}</div></div>
-          <div class="grid2">${field(id("w1"), ld.w1, "kN/m", "w al inicio (↓ +)", data("w1"))}${field(id("w2"), ld.w2, "kN/m", "w al final (↓ +)", data("w2"))}
-          ${field(id("x1"), ld.x1, "m", "Desde x", data("x1"))}${field(id("x2"), ld.x2, "m", "Hasta x", data("x2"))}</div></div>`;
-      }
-      nM += 1; const name = `M${nM}`;
-      return `<div class="load"><div class="load-head"><span class="load-tag"><b>${name}</b>Momento puntual</span><div class="load-tools">${remove(name)}</div></div>
-        <div class="grid2">${field(id("M"), ld.M, "kN·m", "Magnitud M", data("M"))}${field(id("x"), ld.x, "m", "Posición x", data("x"))}
-        <div class="field" style="grid-column: 1 / -1"><label for="${id("sense")}">Sentido</label><select id="${id("sense")}" ${data("sense")}>${options([["cw", "Horario ↻"], ["ccw", "Antihorario ↺"]], ld.sense)}</select></div></div></div>`;
+        ${txtField(`hg${h.id}-x`, h.x, `Articulación H${i + 1}, posición x`, `data-list="hinges" data-id="${h.id}" data-k="x"`)}
+        <button type="button" class="btn-x" data-action="remove" data-list="hinges" data-id="${h.id}" aria-label="Quitar articulación H${i + 1}" title="Quitar articulación">×</button></div>`).join("");
+    renderLoads();
+  }
+  function renderLoads() {
+    if (!state.loads.length) { $("loadList").innerHTML = `<p class="empty">Sin cargas. Agrega una con los botones de abajo.</p>`; return; }
+    $("loadList").innerHTML = state.loads.map((ld, i) => {
+      const T = TYPES[ld.type], d = (f) => `data-list="loads" data-id="${ld.id}" data-k="${f}"`;
+      const fields = T.f.map(([k, label]) => {
+        const id = `ld${ld.id}-${k}`;
+        if (k === "dir") return `<div class="field"><label for="${id}">${label}</label><select id="${id}" ${d(k)}>${options([["hor", "Horario ↻"], ["anti", "Antihorario ↺"]], ld.dir)}</select></div>`;
+        if (k === "curv") return `<div class="field"><label for="${id}">${label}</label><select id="${id}" ${d(k)}>${options([["arriba", "Hacia arriba ◡"], ["abajo", "Hacia abajo ◠"]], ld.curv)}</select></div>`;
+        return txtField(id, ld[k], label, d(k));
+      }).join("");
+      const chips = ld.type === "triangular" || ld.type === "parabolica_pico"
+        ? `<div class="chips"><span class="lbl">Máximo en:</span>${["0", "L/3", "L/2", "2L/3", "L"].map((v) => `<button type="button" class="chip-btn" data-action="chip" data-id="${ld.id}" data-c="${v}">${v}</button>`).join("")}</div>` : "";
+      return `<div class="load"><div class="load-head"><span class="tag">${i + 1}</span>
+        <select id="ld${ld.id}-type" aria-label="Tipo de la carga ${i + 1}" data-ltype="${ld.id}">${Object.entries(TYPES).map(([k, t]) => `<option value="${k}"${k === ld.type ? " selected" : ""}>${t.name}</option>`).join("")}</select>
+        <button type="button" class="btn-x" data-action="remove" data-list="loads" data-id="${ld.id}" aria-label="Quitar la carga ${i + 1}" title="Quitar carga">×</button></div>
+        <div class="fields">${fields}</div>${chips}<p class="load-err" id="ld${ld.id}-err"></p></div>`;
     }).join("");
-    $("loadList").innerHTML = loadsHTML || `<p class="empty">Sin cargas. Agrega una con los botones de arriba.</p>`;
+  }
+  function renderAddBar() {
+    $("addBar").innerHTML = Object.entries(TYPES).map(([k, t]) => `<button type="button" class="btn-add" data-action="add-load" data-t="${k}">+ ${t.name}</button>`).join("");
+  }
+  function renderPresets() {
+    const groups = [...new Set(PRESETS.map((p) => p.g))];
+    $("preset").innerHTML = `<option value="">Elige un caso…</option>` + groups.map((g) => `<optgroup label="${esc(g)}">${PRESETS.map((p, i) => (p.g === g ? `<option value="${i}">${esc(p.n)}</option>` : "")).join("")}</optgroup>`).join("");
+  }
+  function renderVals(syms) {
+    const want = ["L", ...syms];
+    const have = [...$("vals").querySelectorAll("input")].map((i) => i.dataset.s);
+    if (want.join() === have.join()) return;
+    $("vals").innerHTML = want.map((s) => `<div class="field"><label for="val-${s}">${s === "L" ? "L (longitud)" : s}</label><input class="txt" id="val-${s}" data-s="${s}" type="text" inputmode="decimal" value="${esc(state.vals[s] ?? "")}" placeholder="sin valor" autocomplete="off" spellcheck="false"></div>`).join("");
   }
 
-  function onInput(e) {
+  const controls = $("controls");
+  controls.addEventListener("input", (e) => {
     const t = e.target;
-    const f = t.dataset && t.dataset.field;
-    if (!f) return;
-    if (t.dataset.list) {
+    if (t.dataset.s) { state.vals[t.dataset.s] = t.value; compute(); return; }
+    if (t.dataset.list && t.dataset.k) {
       const item = state[t.dataset.list].find((o) => String(o.id) === t.dataset.id);
-      if (item) item[f] = t.value;
-    } else {
-      state[f] = t.value;
-      if (f === "L") {
-        const newL = parseNum(state.L);
-        if (newL > 0 && lastL > 0 && newL !== lastL) {
-          for (const ld of state.loads) {
-            if (ld.kind === "dist" && Math.abs(parseNum(ld.x2) - lastL) < 1e-9) {
-              ld.x2 = rawNum(newL);
-              const el = $(`load-${ld.id}-x2`);
-              if (el) el.value = ld.x2;
-            }
-          }
-        }
-        if (newL > 0) lastL = newL;
-      }
+      if (item) { item[t.dataset.k] = t.value; state.ref = null; compute(); }
     }
-    update();
-  }
-
-  function defaultX() { const L = parseNum(state.L); return L > 0 ? rawNum(Math.round(L * 50) / 100) : "0"; }
-  function onClick(e) {
+  });
+  controls.addEventListener("change", (e) => {
+    const t = e.target;
+    if (t.id === "preset") {
+      if (t.value === "") return;
+      state = fromPreset(Number(t.value), state);
+      pinned = null; hoverX = null;
+      renderControls(); compute();
+      return;
+    }
+    if (t.id === "uF" || t.id === "uL") { state[t.id] = t.value; compute(); return; }
+    if (t.dataset.field) { state[t.dataset.field] = t.value; state.ref = null; compute(); return; }
+    if (t.dataset.ltype) {
+      const ld = state.loads.find((o) => String(o.id) === t.dataset.ltype);
+      if (ld) { const nl = newLoad(t.value); nl.id = ld.id; Object.keys(ld).forEach((k) => delete ld[k]); Object.assign(ld, nl); }
+      state.ref = null; renderLoads(); compute();
+      return;
+    }
+    if (t.tagName === "SELECT" && t.dataset.list) {
+      const item = state[t.dataset.list].find((o) => String(o.id) === t.dataset.id);
+      if (item) { item[t.dataset.k] = t.value; state.ref = null; compute(); }
+    }
+  });
+  controls.addEventListener("click", (e) => {
     const b = e.target.closest("[data-action]");
     if (!b) return;
     const a = b.dataset.action;
-    const L = parseNum(state.L);
     if (a === "remove") state[b.dataset.list] = state[b.dataset.list].filter((o) => String(o.id) !== b.dataset.id);
-    else if (a === "add-inner") state.inner.push({ id: nid(), type: "rodillo", x: defaultX() });
-    else if (a === "add-hinge") state.hinges.push({ id: nid(), x: L > 0 ? rawNum(Math.round(L * 100 / 3) / 100) : "0" });
-    else if (a === "add-point") state.loads.push({ id: nid(), kind: "point", P: "10", x: defaultX() });
-    else if (a === "add-dist") state.loads.push({ id: nid(), kind: "dist", w1: "5", w2: "5", x1: "0", x2: L > 0 ? rawNum(L) : "1" });
-    else if (a === "add-moment") state.loads.push({ id: nid(), kind: "moment", M: "10", x: defaultX(), sense: "cw" });
-    else if (a === "full-span") {
+    else if (a === "add-inner") state.inner.push({ id: nid(), type: "rodillo", x: "L/2" });
+    else if (a === "add-hinge") state.hinges.push({ id: nid(), x: "L/3" });
+    else if (a === "add-load") state.loads.push(newLoad(b.dataset.t));
+    else if (a === "chip") {
       const ld = state.loads.find((o) => String(o.id) === b.dataset.id);
-      if (ld && L > 0) { ld.x1 = "0"; ld.x2 = rawNum(L); }
+      if (ld) { ld.c = b.dataset.c; const inp = $(`ld${ld.id}-c`); if (inp) inp.value = ld.c; }
+      state.ref = null; compute();
+      return;
     } else return;
-    renderLists();
-    update();
+    state.ref = null;
+    renderControls(); compute();
     if (a.startsWith("add-")) {
       const list = a === "add-inner" ? "innerList" : a === "add-hinge" ? "hingeList" : "loadList";
-      const inputs = $(list).querySelectorAll("input");
-      const last = $(list).lastElementChild;
-      const target = last && last.querySelector("input");
-      if (target) target.focus({ preventScroll: false });
-      else if (inputs.length) inputs[inputs.length - 1].focus();
+      const last = $(list).lastElementChild, inp = last && last.querySelector("input");
+      if (inp) inp.focus();
     }
-  }
+  });
 
-  // ---------- Modelo
-  function buildModel() {
+  // ---------- Cálculo
+  let cur = null;
+  let hoverX = null, pinned = null;
+
+  function compute() {
+    persist();
+    $("preset").value = state.ref == null ? "" : String(state.ref);
     const errors = [];
     const bad = (id, msg) => errors.push({ id, msg });
-    const L = parseNum(state.L);
-    if (!Number.isFinite(L)) { bad("inp-L", "Escribe un número válido para la luz L."); return { errors }; }
-    if (L <= 0) { bad("inp-L", "La luz L debe ser mayor que cero."); return { errors }; }
-    const tol = 1e-9 * L;
-    const inRange = (x) => x >= -tol && x <= L + tol;
-    const snap = (x) => Math.min(L, Math.max(0, x));
+    document.querySelectorAll('#controls [aria-invalid="true"]').forEach((el) => el.removeAttribute("aria-invalid"));
+    state.loads.forEach((ld) => { const el = $(`ld${ld.id}-err`); if (el) el.textContent = ""; });
 
-    const supports = [{ label: "A", x: 0, type: state.A, end: true }, { label: "B", x: L, type: state.B, end: true }];
+    let Lnum = null;
+    const Lraw = String(state.vals.L ?? "").trim();
+    if (Lraw) {
+      try { Lnum = Q.parse(Lraw.replace(",", ".")); if (Lnum.cmp(0) <= 0) throw new Error(); } catch (e) { Lnum = null; bad("val-L", "L debe ser un número mayor que cero."); }
+    }
+    const supports = [{ label: "A", x: Q0, type: state.A }, { label: "B", x: Q1, type: state.B }];
     state.inner.forEach((s, i) => {
-      const label = letterOf(i), id = `inner-${s.id}-x`, x = parseNum(s.x);
-      if (!Number.isFinite(x)) bad(id, `Apoyo ${label}: escribe una posición válida.`);
-      else if (x <= tol || x >= L - tol) bad(id, `Apoyo ${label}: debe quedar entre los extremos (0 < x < L). Para los extremos usa A y B.`);
-      else if (supports.slice(2).some((o) => Math.abs(o.x - x) <= tol)) bad(id, `Apoyo ${label}: ya hay otro apoyo en x = ${fmtS(x)} m.`);
-      supports.push({ label, x, type: s.type });
+      const label = letterOf(i), id = `in${s.id}-x`;
+      try {
+        const x = parsePos(s.x, Lnum);
+        if (x.isZero() || x.cmp(1) === 0) throw new Error(`debe quedar entre los extremos (0 < x < L). Para los extremos usa A y B.`);
+        if (supports.slice(2).some((o) => o.x.cmp(x) === 0)) throw new Error(`ya hay otro apoyo en esa posición.`);
+        supports.push({ label, x, type: s.type });
+      } catch (err) { bad(id, `Apoyo ${label}: ${err.message.charAt(0).toLowerCase()}${err.message.slice(1)}`); }
     });
-
     const hinges = [];
     state.hinges.forEach((h, i) => {
-      const label = `H${i + 1}`, id = `hinge-${h.id}-x`, x = parseNum(h.x);
-      if (!Number.isFinite(x)) bad(id, `${label}: escribe una posición válida.`);
-      else if (x <= tol || x >= L - tol) bad(id, `${label}: la articulación debe quedar dentro de la viga (0 < x < L).`);
-      else if (hinges.some((o) => Math.abs(o.x - x) <= tol)) bad(id, `${label}: ya hay otra articulación en x = ${fmtS(x)} m.`);
-      hinges.push({ label, x });
+      const label = `H${i + 1}`, id = `hg${h.id}-x`;
+      try {
+        const x = parsePos(h.x, Lnum);
+        if (x.isZero() || x.cmp(1) === 0) throw new Error("la articulación debe quedar dentro de la viga (0 < x < L).");
+        if (hinges.some((o) => o.x.cmp(x) === 0)) throw new Error("ya hay otra articulación en esa posición.");
+        hinges.push({ label, x });
+      } catch (err) { bad(id, `${label}: ${err.message.charAt(0).toLowerCase()}${err.message.slice(1)}`); }
     });
-
-    const loads = [];
-    let nP = 0, nQ = 0, nM = 0;
-    for (const ld of state.loads) {
-      const id = (f) => `load-${ld.id}-${f}`;
-      if (ld.kind === "point") {
-        nP += 1; const label = `P${nP}`;
-        const P = parseNum(ld.P), x = parseNum(ld.x);
-        if (!Number.isFinite(P)) bad(id("P"), `${label}: escribe una magnitud válida.`);
-        if (!Number.isFinite(x)) bad(id("x"), `${label}: escribe una posición válida.`);
-        else if (!inRange(x)) bad(id("x"), `${label}: la posición debe estar entre 0 y L = ${fmtS(L)} m.`);
-        loads.push({ kind: "point", label, P, x: snap(x) });
-      } else if (ld.kind === "dist") {
-        nQ += 1; const label = `q${nQ}`;
-        const w1 = parseNum(ld.w1), w2 = parseNum(ld.w2), x1 = parseNum(ld.x1), x2 = parseNum(ld.x2);
-        if (!Number.isFinite(w1)) bad(id("w1"), `${label}: escribe la intensidad inicial.`);
-        if (!Number.isFinite(w2)) bad(id("w2"), `${label}: escribe la intensidad final.`);
-        if (!Number.isFinite(x1)) bad(id("x1"), `${label}: escribe dónde empieza la carga.`);
-        else if (!inRange(x1)) bad(id("x1"), `${label}: el inicio debe estar entre 0 y L = ${fmtS(L)} m.`);
-        if (!Number.isFinite(x2)) bad(id("x2"), `${label}: escribe dónde termina la carga.`);
-        else if (!inRange(x2)) bad(id("x2"), `${label}: el final debe estar entre 0 y L = ${fmtS(L)} m.`);
-        else if (Number.isFinite(x1) && x2 - x1 <= tol) bad(id("x2"), `${label}: el final debe quedar a la derecha del inicio.`);
-        loads.push({ kind: "dist", label, w1, w2, x1: snap(x1), x2: snap(x2) });
-      } else {
-        nM += 1; const label = `M${nM}`;
-        const Mv = parseNum(ld.M), x = parseNum(ld.x);
-        if (!Number.isFinite(Mv)) bad(id("M"), `${label}: escribe una magnitud válida.`);
-        if (!Number.isFinite(x)) bad(id("x"), `${label}: escribe una posición válida.`);
-        else if (!inRange(x)) bad(id("x"), `${label}: la posición debe estar entre 0 y L = ${fmtS(L)} m.`);
-        else {
-          const h = hinges.find((o) => Math.abs(o.x - x) <= tol);
-          if (h) bad(id("x"), `${label} está justo sobre la articulación ${h.label}: no se sabe a qué lado actúa. Muévelo un poco a la izquierda o a la derecha.`);
+    const elems = [], loadInfo = [];
+    state.loads.forEach((ld, i) => {
+      try {
+        const els = buildLoad(ld, Lnum);
+        for (const e of els) {
+          if (e.kind === "moment") {
+            const h = hinges.find((o) => o.x.cmp(e.a) === 0);
+            if (h) throw new Error(`El momento está justo sobre la articulación ${h.label}: muévelo un poco a la izquierda o a la derecha.`);
+          }
         }
-        loads.push({ kind: "moment", label, M: Mv, sense: ld.sense, C: (ld.sense === "ccw" ? 1 : -1) * Mv, x: snap(x) });
+        els.forEach((e) => { e.idx = i; elems.push(e); });
+        loadInfo.push({ i, ld, els });
+      } catch (err) {
+        bad(`ld${ld.id}-mag`, `Carga ${i + 1}: ${err.message}`);
+        const el = $(`ld${ld.id}-err`); if (el) el.textContent = err.message;
       }
+    });
+    const syms = [...new Set(elems.map((e) => e.sym).filter(Boolean))].sort();
+    renderVals(syms);
+    const symNum = {};
+    let symBad = false;
+    for (const s of syms) {
+      const raw = String(state.vals[s] ?? "").trim();
+      if (!raw) continue;
+      try { symNum[s] = Q.parse(raw.replace(",", ".")).num(); } catch (e) { symBad = true; const inp = $(`val-${s}`); if (inp) inp.setAttribute("aria-invalid", "true"); }
     }
-    return { errors, model: { L, supports, hinges, loads } };
-  }
-
-  // ---------- Cálculo y resultados
-  let current = null;
-  let hoverX = null, pinnedX = null;
-
-  function update() {
-    persist();
-    const { errors, model } = buildModel();
-    document.querySelectorAll('#controls [aria-invalid="true"]').forEach((el) => el.removeAttribute("aria-invalid"));
-    errors.forEach((e) => { const el = $(e.id); if (el) el.setAttribute("aria-invalid", "true"); });
+    errors.forEach((er) => { const el = $(er.id); if (el && el.tagName === "INPUT") el.setAttribute("aria-invalid", "true"); });
     const msg = errors.length ? errors[0].msg + (errors.length > 1 ? ` Hay ${errors.length - 1} dato${errors.length > 2 ? "s" : ""} más por corregir.` : "") : "";
     $("ctlError").textContent = msg; $("ctlError").hidden = !msg;
-    $("resultsAlert").textContent = msg ? `${msg} Los resultados de abajo corresponden al último modelo válido.` : "";
+    $("resultsAlert").textContent = msg ? `${msg} Lo de abajo corresponde al último modelo válido.` : "";
     $("resultsAlert").hidden = !msg;
     $("results").classList.toggle("stale", !!msg);
+    const ref = state.ref != null && PRESETS[state.ref] ? PRESETS[state.ref].ref : "";
+    $("refBanner").innerHTML = ref ? `Valor de referencia: <b>${esc(ref)}</b>` : "";
+    $("refBanner").hidden = !ref;
     if (errors.length) return;
-    const cls = classify(model);
+
+    const cls = classify(supports, hinges);
     let sol;
-    try { sol = solveBeam(model); } catch (err) { sol = { ok: false, mechanism: { stable: false, moving: [] }, failed: true }; }
-    current = { model, cls, sol };
-    if (pinnedX != null && pinnedX > model.L) pinnedX = null;
+    try { sol = solveBeamExact(supports, hinges, elems); } catch (err) { sol = { ok: false, moving: [], failed: true }; }
+    const allNum = !!Lnum && !symBad && syms.every((s) => s in symNum);
+    const keys = uniqQ([Q0, Q1, ...supports.filter((s) => s.type !== "libre").map((s) => s.x), ...hinges.map((h) => h.x), ...elems.flatMap((e) => (e.kind === "dist" ? [e.a, e.b] : [e.a]))]);
+    cur = { supports, hinges, elems, loadInfo, sol, cls, Lnum, Lf: Lnum ? Lnum.num() : 1, symNum, allNum, syms, keys };
+    if (pinned && pinned.q == null && pinned.x > 1) pinned = null;
     renderResults();
   }
 
+  // Valores numéricos de una lista de términos
+  const termNum = (t) => (t.q ? t.q.num() : t.f) * (t.sym ? cur.symNum[t.sym] : 1) * Math.pow(cur.Lf, t.n);
+  const sumNum = (terms) => terms.reduce((a, t) => a + termNum(t), 0);
+  const uM = () => `${state.uF}·${state.uL}`;
+  const posText = (q) => posShort(q) + (cur.Lnum ? ` (${fmtSig(q.num() * cur.Lf, 4)} ${state.uL})` : "");
+  const posTextF = (x) => `${fmtSig(x, 4)}L` + (cur.Lnum ? ` (${fmtSig(x * cur.Lf, 4)} ${state.uL})` : "");
+
+  // Modelo de dibujo: 'sym' (una sola letra, en unidades de WL²...) o 'num' (con valores)
+  function plotModel(mode) {
+    const G = cur.sol.groups;
+    const fac = (g) => (mode === "num" ? (g.sym ? cur.symNum[g.sym] : 1) * Math.pow(cur.Lf, g.n) : 1);
+    const segs = cur.sol.bps.slice(0, -1).map((sq, i) => {
+      const eq = cur.sol.bps[i + 1], m = [], v = [];
+      G.forEach((g) => {
+        const f = fac(g);
+        g.mSegs[i].forEach((c, j) => { m[j] = (m[j] || 0) + c.num() * f; });
+        g.vSegs[i].forEach((c, j) => { v[j] = (v[j] || 0) + c.num() * f / (mode === "num" ? cur.Lf : 1); });
+      });
+      return { s: sq.num(), e: eq.num(), sq, eq, m, v, mq: mode === "sym" ? G[0].mSegs[i] : null, vq: mode === "sym" ? G[0].vSegs[i] : null };
+    });
+    const g = G[0];
+    return {
+      mode, segs, g,
+      unitM: mode === "num" ? uM() : unitText(g.sym, g.n),
+      unitV: mode === "num" ? state.uF : unitText(g.sym, g.n - 1),
+    };
+  }
+  function extremesOf(pm, key) {
+    const exact = pm.mode === "sym";
+    const cands = [], interior = [];
+    for (const sg of pm.segs) {
+      const pf = sg[key], pq = exact ? sg[`${key}q`] : null;
+      cands.push({ x: sg.s, xq: sg.sq, v: P.evf(pf, sg.s), vq: pq ? P.ev(pq, sg.sq) : null });
+      cands.push({ x: sg.e, xq: sg.eq, v: P.evf(pf, sg.e), vq: pq ? P.ev(pq, sg.eq) : null });
+      const d = pf.slice(1).map((c, k) => c * (k + 1));
+      if (!d.length || d.every((c) => Math.abs(c) < 1e-13)) continue;
+      for (const r of rootsIn(d, sg.s, sg.e)) {
+        let c = { x: r, v: P.evf(pf, r) };
+        if (pq) {
+          const rq = bestRational(r);
+          if (rq.cmp(sg.sq) > 0 && rq.cmp(sg.eq) < 0 && P.ev(P.deriv(pq), rq).isZero()) c = { x: rq.num(), xq: rq, v: P.ev(pq, rq).num(), vq: P.ev(pq, rq) };
+        }
+        cands.push(c); interior.push(c);
+      }
+    }
+    let max = null, min = null;
+    for (const c of cands) { if (!max || c.v > max.v + 1e-12) max = c; if (!min || c.v < min.v - 1e-12) min = c; }
+    return { max, min, interior };
+  }
+  function fmtVal(pm, v, vq, key) {
+    if (pm.mode === "num") return fmtSig(v, 4);
+    const n = key === "m" ? pm.g.n : pm.g.n - 1, sym = pm.g.sym;
+    if (vq) return monoText(vq, sym, n);
+    if (Math.abs(v) < 1e-12) return "0";
+    const u = unitText(sym, n);
+    if (u.includes("/") || u === "1") return `≈ ${fmtSig(v, 3)}${u === "1" ? "" : ` ${u}`}`;
+    const inv = 1 / Math.abs(v);
+    return `≈ ${v < 0 ? "−" : ""}${u}/${fmtFix(inv, inv >= 100 ? 1 : 2)}`;
+  }
+
   function renderResults() {
+    const { sol } = cur;
+    cur.pmSym = sol.ok && sol.groups.length === 1 ? plotModel("sym") : null;
+    cur.pmNum = sol.ok && sol.groups.length && cur.allNum ? plotModel("num") : null;
+    cur.pm = cur.pmNum || cur.pmSym;
     renderStatus();
     drawPlot();
-    renderMetrics();
+    renderCards();
     renderReactions();
     renderChecks();
+    renderPoints();
     renderEquations();
     updateProbe();
   }
 
   function renderStatus() {
-    const { cls, sol, model } = current;
+    const { cls, sol } = cur;
     const parts = [];
-    let chip;
     const gi = cls.hasH ? cls.GI : cls.GIv;
-    if (!sol.ok) chip = `<span class="chip bad">Inestable · mecanismo</span>`;
-    else if (gi === 0) chip = `<span class="chip ok">Isostática</span>`;
-    else chip = `<span class="chip hyper">Hiperestática de grado ${gi}</span>`;
-    parts.push(chip);
+    if (!sol.ok) parts.push(`<span class="chip bad">Inestable · mecanismo</span>`);
+    else if (gi === 0) parts.push(`<span class="chip ok">Isostática</span>`);
+    else parts.push(`<span class="chip hyper">Hiperestática de grado ${gi}</span>`);
     if (cls.hasH) parts.push(`<span class="gi">GI = r − 3 − c = ${cls.r} − 3 − ${cls.c} = ${cls.GI}</span>`);
     else parts.push(`<span class="gi">GI<sub>vert</sub> = r<sub>v</sub> − 2 − c = ${cls.rv} − 2 − ${cls.c} = ${cls.GIv}</span>`);
     parts.push(`<span class="gi-legend">r: reacciones · c: articulaciones internas</span>`);
     if (!cls.hasH && sol.ok) parts.push(`<span class="chip warn" title="Ningún apoyo restringe el desplazamiento horizontal. Con cargas verticales el equilibrio se cumple igual.">Sin restricción horizontal</span>`);
     if (!sol.ok) {
       let msg;
-      if (sol.failed) msg = "No se pudo resolver el sistema. Revisa que los apoyos y articulaciones no estén prácticamente en el mismo punto.";
+      if (sol.failed) msg = "No se pudo resolver el sistema con estos datos.";
       else {
-        const ranges = sol.mechanism.moving.map(([a, b]) => `x = ${fmtS(a)} a ${fmtS(b)} m`).join(" y ");
-        msg = `Con estos apoyos y articulaciones, la parte de la viga entre ${ranges} puede moverse sin deformarse (marcada en rojo en el esquema). Agrega un apoyo en esa zona o quita una articulación.`;
-        if (cls.GI >= 0 && cls.hasH) msg += ` Ojo: GI ≥ 0 no garantiza estabilidad; aquí la inestabilidad es geométrica.`;
+        const ranges = sol.moving.map(([a, b]) => `x = ${posShort(a)} y x = ${posShort(b)}`).join(", y entre ");
+        msg = `Con estos apoyos y articulaciones, la parte de la viga entre ${ranges} puede moverse sin deformarse (marcada en rojo). Agrega un apoyo en esa zona o quita una articulación.`;
+        if (cls.GI >= 0 && cls.hasH) msg += " Ojo: GI ≥ 0 no garantiza estabilidad; aquí la inestabilidad es geométrica.";
       }
       parts.push(`<p class="status-msg">${msg}</p>`);
     }
     $("status").innerHTML = parts.join("");
   }
 
-  function renderMetrics() {
-    const { sol } = current;
-    const tile = (cls, k, v, at) => `<article class="panel metric ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="at">${at}</div></article>`;
-    if (!sol.ok) {
-      $("metrics").innerHTML = ["Momento máximo", "Momento mínimo", "Cortante máximo", "Cortante mínimo"].map((k, i) => tile(i < 2 ? "m" : "s", k, "—", "Sin solución")).join("");
-      return;
+  // Términos (exactos) de V o M en un punto racional, por lado
+  function segIndexQ(xq, side) {
+    const bps = cur.sol.bps, n = bps.length - 1;
+    for (let i = 0; i < n; i += 1) {
+      const s = bps[i], e = bps[i + 1];
+      if (side === "left" ? xq.cmp(s) > 0 && xq.cmp(e) <= 0 : xq.cmp(s) >= 0 && xq.cmp(e) < 0) return i;
     }
-    $("metrics").innerHTML = [
-      tile("m", "Momento máximo", `${signed(sol.mMax.v)} kN·m`, `x = ${fmt(sol.mMax.x, 3)} m`),
-      tile("m", "Momento mínimo", `${signed(sol.mMin.v)} kN·m`, `x = ${fmt(sol.mMin.x, 3)} m`),
-      tile("s", "Cortante máximo", `${signed(sol.vMax.v)} kN`, `x = ${fmt(sol.vMax.x, 3)} m`),
-      tile("s", "Cortante mínimo", `${signed(sol.vMin.v)} kN`, `x = ${fmt(sol.vMin.x, 3)} m`),
-    ].join("");
+    return side === "left" ? 0 : n - 1;
+  }
+  function segIndexF(x, side) {
+    const bps = cur.sol.bps, n = bps.length - 1;
+    for (let i = 0; i < n; i += 1) {
+      const s = bps[i].num(), e = bps[i + 1].num();
+      if (side === "left" ? x > s && x <= e : x >= s && x < e) return i;
+    }
+    return side === "left" ? 0 : n - 1;
+  }
+  function termsAtQ(key, xq, side) {
+    const i = segIndexQ(xq, side);
+    return cur.sol.groups.map((g) => ({ q: P.ev((key === "m" ? g.mSegs : g.vSegs)[i], xq), sym: g.sym, n: key === "m" ? g.n : g.n - 1 }));
+  }
+  function termsAtF(key, x, side) {
+    const i = segIndexF(x, side);
+    return cur.sol.groups.map((g) => ({ f: P.evf((key === "m" ? g.mSegs : g.vSegs)[i], x), sym: g.sym, n: key === "m" ? g.n : g.n - 1 }));
+  }
+  const sameTerms = (a, b) => a.every((t, i) => (t.q ? t.q.cmp(b[i].q) === 0 : Math.abs(t.f - b[i].f) < 1e-10));
+  const numLine = (terms, unit) => (cur.allNum ? `${fmtSig(sumNum(terms), 5)} ${unit}` : "");
+
+  function renderCards() {
+    const { sol, supports } = cur;
+    const cards = [];
+    if (!sol.ok) { $("cards").innerHTML = `<article class="panel res"><span class="name">Sin resultados</span><div class="dec">La viga es un mecanismo con estos apoyos.</div></article>`; return; }
+    if (!sol.groups.length) { $("cards").innerHTML = `<article class="panel res"><span class="name">Sin cargas</span><div class="dec">Agrega al menos una carga para ver resultados.</div></article>`; return; }
+    const card = (cls, name, valHTML, dec, where, num) => `<article class="panel res ${cls}"><span class="name">${name}</span><div class="val">${valHTML}</div>${dec ? `<div class="dec">${dec}</div>` : ""}${where ? `<div class="where">${where}</div>` : ""}${num ? `<div class="numv">= ${num}</div>` : ""}</article>`;
+
+    // Momentos en apoyos
+    for (const s of supports.slice().sort((a, b) => a.x.cmp(b.x))) {
+      const info = SUPPORT_INFO[s.type];
+      const interior = !s.x.isZero() && s.x.cmp(1) !== 0;
+      if (!(info.th || interior)) continue;
+      const side = s.x.isZero() ? "right" : "left";
+      const t = termsAtQ("m", s.x, side);
+      let dec = decTerms(t);
+      if (interior) { const tr = termsAtQ("m", s.x, "right"); if (!sameTerms(t, tr)) dec = `izquierda; a la derecha: ${sumText(tr)}`; }
+      cards.push(card("m key", `M<sub>${s.label}</sub> · ${info.name.toLowerCase()}`, sumHTML(t), dec === sumText(t) ? "" : dec, "", numLine(t, uM())));
+    }
+    // Extremos
+    const pm = cur.pmSym || cur.pmNum;
+    const ext = pm ? extremesOf(pm, "m") : null;
+    const extCard = (title, e, sign) => {
+      if (!e || sign * e.v <= 1e-12) return card("m", title, "<span>—</span>", sign > 0 ? "No hay momento positivo" : "No hay momento negativo", "", "");
+      const where = `en x = ${e.xq ? posText(e.xq) : posTextF(e.x)}`;
+      if (pm.mode === "sym") {
+        const n = pm.g.n, sym = pm.g.sym;
+        const valH = e.vq ? sumHTML([{ q: e.vq, sym, n }]) : `<span>${esc(fmtVal(pm, e.v, null, "m"))}</span>`;
+        const dec = `${fmtSig(e.v, 4)} ${unitText(sym, n)}`;
+        const num = cur.allNum ? `${fmtSig(e.v * (sym ? cur.symNum[sym] : 1) * Math.pow(cur.Lf, n), 5)} ${uM()}` : "";
+        return card("m key", title, valH, dec, where, num);
+      }
+      return card("m key", title, `<span>${fmtSig(e.v, 5)}</span>`, uM(), where, "");
+    };
+    if (ext) { cards.push(extCard("M máx positivo", ext.max, 1)); cards.push(extCard("M máx negativo", ext.min, -1)); }
+    else cards.push(card("m", "M máximo", "<span>—</span>", `Hay cargas con distintas letras (${cur.syms.join(", ")}): el máximo depende de la relación entre ellas. Escribe sus valores numéricos y el de L para ubicarlo.`, "", ""));
+    // Cortante máximo absoluto
+    if (pm) {
+      const ev = extremesOf(pm, "v");
+      const e = Math.abs(ev.max.v) >= Math.abs(ev.min.v) ? ev.max : ev.min;
+      if (Math.abs(e.v) > 1e-12) {
+        const where = `en x = ${e.xq ? posText(e.xq) : posTextF(e.x)}`;
+        if (pm.mode === "sym") {
+          const n = pm.g.n - 1, sym = pm.g.sym;
+          const num = cur.allNum ? `${fmtSig(e.v * (sym ? cur.symNum[sym] : 1) * Math.pow(cur.Lf, n), 5)} ${state.uF}` : "";
+          cards.push(card("", "Cortante máximo |V|", e.vq ? sumHTML([{ q: e.vq, sym, n }]) : `<span>${esc(fmtVal(pm, e.v, null, "v"))}</span>`, `${fmtSig(e.v, 4)} ${unitText(sym, n)}`, where, num));
+        } else cards.push(card("", "Cortante máximo |V|", `<span>${fmtSig(e.v, 5)}</span>`, state.uF, where, ""));
+      }
+    }
+    $("cards").innerHTML = cards.join("");
   }
 
   function renderReactions() {
-    const { model, sol } = current;
-    const rows = model.supports.slice().sort((a, b) => a.x - b.x).map((s) => {
+    const { sol, supports } = cur;
+    $("reactionRows").innerHTML = supports.slice().sort((a, b) => a.x.cmp(b.x)).map((s) => {
       const info = SUPPORT_INFO[s.type];
-      const r = sol.ok ? sol.reactions.find((q) => q.label === s.label) : null;
-      const ry = !info.v ? "—" : r ? `${fmt(Math.abs(r.Ry))} ${clean(r.Ry) < 0 ? "↓" : "↑"}` : "?";
-      const mr = !info.th ? "—" : r ? `${fmt(Math.abs(r.Mr))} ${clean(r.Mr) < 0 ? "↻" : "↺"}` : "?";
-      return `<tr><td><b>${s.label}</b><span class="sub">${info.name}</span></td><td class="num">${fmt(s.x)}</td><td class="num">${ry}</td><td class="num">${mr}</td></tr>`;
-    });
-    $("reactionRows").innerHTML = rows.join("");
+      const cell = (has, key, nAdj, unit) => {
+        if (!has) return `<td class="mono">—</td>`;
+        if (!sol.ok || !sol.groups.length) return `<td class="mono">${sol.ok ? "0" : "?"}</td>`;
+        const t = sol.groups.map((g) => { const r = g.reactions.find((q) => q.label === s.label); return { q: r[key], sym: g.sym, n: g.n + nAdj }; });
+        const num = numLine(t, unit);
+        const dec = decTerms(t);
+        return `<td class="mono">${esc(sumText(t))}<span class="sub">${num ? `= ${num}` : dec !== sumText(t) ? `= ${dec}` : ""}</span></td>`;
+      };
+      return `<tr><td><b>${s.label}</b><span class="sub">${info.name}</span></td><td class="mono">${posText(s.x)}</td>${cell(info.v, "Ry", -1, state.uF)}${cell(info.th, "Mr", 0, uM())}</tr>`;
+    }).join("");
   }
 
   function renderChecks() {
-    const { model, sol } = current;
+    const { sol, hinges } = cur;
     if (!sol.ok) { $("checks").innerHTML = `<li><span>Sin solución mientras la viga sea un mecanismo.</span><span></span><span></span></li>`; return; }
-    const tolF = 1e-6 * sol.check.scale, tolM = 1e-6 * sol.check.scale * model.L;
-    const item = (label, sub, val, unit, ok) => `<li><span>${label}${sub ? `<span class="sub">${sub}</span>` : ""}</span><span class="val">${fmt(val, 3)} ${unit}</span><span class="mark ${ok ? "ok" : "bad"}" aria-label="${ok ? "Cumple" : "No cumple"}">${ok ? "✓" : "✗"}</span></li>`;
+    const G = sol.groups;
+    const item = (label, sub, terms) => {
+      const ok = terms.every((t) => t.q.isZero());
+      return `<li><span>${label}<span class="sub">${sub}</span></span><span class="val">${esc(sumText(terms))}</span><span class="mark ${ok ? "ok" : "bad"}" aria-label="${ok ? "Cumple" : "No cumple"}">${ok ? "✓" : "✗"}</span></li>`;
+    };
     const list = [
-      item("ΣF<sub>y</sub> = 0", "Reacciones menos cargas", sol.check.Fy, "kN", Math.abs(sol.check.Fy) <= tolF),
-      item("ΣM<sub>A</sub> = 0", "Momentos respecto a A", sol.check.MA, "kN·m", Math.abs(sol.check.MA) <= tolM),
-      ...sol.hingeM.map((h) => item(`M en ${h.label} = 0`, `Articulación en x = ${fmt(h.x)} m`, h.M, "kN·m", Math.abs(h.M) <= tolM)),
+      item("ΣF<sub>y</sub> = 0", "Reacciones menos cargas", G.map((g) => ({ q: g.check.Fy, sym: g.sym, n: g.n - 1 }))),
+      item("ΣM<sub>A</sub> = 0", "Momentos respecto a A", G.map((g) => ({ q: g.check.MA, sym: g.sym, n: g.n }))),
+      ...hinges.map((h, k) => item(`M en ${h.label} = 0`, `Articulación en x = ${posShort(h.x)}`, G.map((g) => ({ q: g.hingeM[k], sym: g.sym, n: g.n })))),
     ];
     $("checks").innerHTML = list.join("");
   }
 
-  function polyHTML(c) {
-    const sc = Math.max(1, ...c.map(Math.abs));
-    const terms = [];
-    c.forEach((v, n) => { if (Math.abs(v) > 1e-9 * sc) terms.push({ v, n }); });
-    if (!terms.length) return "0";
-    return terms.map((t, i) => {
-      const neg = t.v < 0;
-      const sign = i === 0 ? (neg ? "−" : "") : (neg ? " − " : " + ");
-      const xs = t.n === 0 ? "" : t.n === 1 ? "x" : `x${t.n === 2 ? "²" : "³"}`;
-      return `${sign}${fmtCoef(Math.abs(t.v))}${xs}`;
-    }).join("");
+  function renderPoints() {
+    const { sol } = cur;
+    if (!sol.ok || !sol.groups.length) { $("pts").innerHTML = `<tbody><tr><td class="side">${sol.ok ? "Agrega cargas para ver valores." : "Sin valores mientras la viga sea un mecanismo."}</td></tr></tbody>`; return; }
+    const rows = [];
+    const cell = (cls, t, unit) => {
+      const num = numLine(t, unit), dec = decTerms(t);
+      return `<td class="mono ${cls}">${esc(sumText(t))}<span class="sub">${num ? `= ${num}` : dec !== sumText(t) ? `= ${dec}` : ""}</span></td>`;
+    };
+    sol.bps.forEach((b, i) => {
+      const last = i === sol.bps.length - 1;
+      const L = i > 0 ? { v: termsAtQ("v", b, "left"), m: termsAtQ("m", b, "left") } : null;
+      const R = !last ? { v: termsAtQ("v", b, "right"), m: termsAtQ("m", b, "right") } : null;
+      const list = L && R && !(sameTerms(L.v, R.v) && sameTerms(L.m, R.m)) ? [["izquierda", L], ["derecha", R]] : [["", R || L]];
+      list.forEach(([side, t], k) => {
+        rows.push(`<tr><td class="mono">${k === 0 ? posText(b) : ""}${side ? ` <span class="side">${side}</span>` : ""}</td>${cell("cv", t.v, state.uF)}${cell("cm", t.m, uM())}</tr>`);
+      });
+    });
+    $("pts").innerHTML = `<thead><tr><th>x</th><th>V</th><th>M</th></tr></thead><tbody>${rows.join("")}</tbody>`;
   }
 
   function renderEquations() {
-    const { sol } = current;
-    if (!sol.ok) { $("eqRows").innerHTML = `<tr><td colspan="3" class="span">Sin ecuaciones mientras la viga sea un mecanismo.</td></tr>`; return; }
-    $("eqRows").innerHTML = sol.pieces.map((p, i) => `<tr>
-      <td class="span">${i + 1}<span class="sub">${fmt(p.xa)} ≤ x ≤ ${fmt(p.xb)}</span></td>
-      <td class="fv">V = ${polyHTML(p.vPoly)}</td>
-      <td class="fm">M = ${polyHTML(p.mPoly)}</td></tr>`).join("");
+    const { sol } = cur;
+    if (!sol.ok || !sol.groups.length) { $("eqRows").innerHTML = `<tr><td colspan="3" class="side">${sol.ok ? "Agrega cargas para ver las ecuaciones." : "Sin ecuaciones mientras la viga sea un mecanismo."}</td></tr>`; return; }
+    const G = sol.groups;
+    const samePoly = (a, b) => a.length === b.length && a.every((c, i) => c.cmp(b[i]) === 0);
+    const pieces = [];
+    sol.bps.slice(0, -1).forEach((s, i) => {
+      const last = pieces[pieces.length - 1];
+      if (last && G.every((g) => samePoly(g.mSegs[last.i], g.mSegs[i]))) { last.e = sol.bps[i + 1]; return; }
+      pieces.push({ i, s, e: sol.bps[i + 1] });
+    });
+    const polyTerms = (key, i) => {
+      const out = [];
+      G.forEach((g) => {
+        const poly = (key === "m" ? g.mSegs : g.vSegs)[i], n0 = key === "m" ? g.n : g.n - 1;
+        poly.forEach((c, k) => { if (!c.isZero()) out.push({ q: c, sym: g.sym, n: n0 - k, k }); });
+      });
+      return out.sort((a, b) => a.k - b.k);
+    };
+    $("eqRows").innerHTML = pieces.map((p, j) => `<tr>
+      <td class="mono">${j + 1}<span class="sub">${posShort(p.s)} ≤ x ≤ ${posShort(p.e)}</span></td>
+      <td class="mono cv">V = ${esc(sumText(polyTerms("v", p.i)))}</td>
+      <td class="mono cm">M = ${esc(sumText(polyTerms("m", p.i)))}</td></tr>`).join("");
   }
 
   // ---------- Dibujo
@@ -1090,14 +1411,12 @@
     for (let v = Math.ceil(lo / step) * step; v <= hi + step * 1e-9; v += step) out.push(Math.abs(v) < step * 1e-9 ? 0 : v);
     return out;
   }
-
   function labelSet(bounds) {
     const boxes = [];
     const hit = (b) => boxes.some((o) => b.x1 < o.x2 && b.x2 > o.x1 && b.y1 < o.y2 && b.y2 > o.y1);
     return {
-      block(x1, y1, x2, y2) { boxes.push({ x1, y1, x2, y2 }); },
       place(text, x, y, anchor, size, force) {
-        const w = text.length * size * 0.6 + 4, h = size + 1;
+        const w = [...text].length * size * 0.6 + 4, h = size + 1;
         let x1 = anchor === "middle" ? x - w / 2 : anchor === "end" ? x - w : x;
         if (bounds) {
           if (x1 < bounds.x1) { x += bounds.x1 - x1; x1 = bounds.x1; }
@@ -1110,7 +1429,6 @@
       },
     };
   }
-
   function arrow(x1, y1, x2, y2, hs, cls) {
     const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
     const bx = x2 - ux * hs, by = y2 - uy * hs, px = -uy * hs * 0.48, py = ux * hs * 0.48;
@@ -1126,17 +1444,14 @@
     for (let y = y1 + 3; y <= y2 + 0.1; y += 5) s += `<line class="s-hatch" x1="${r1(x + dir)}" y1="${r1(y)}" x2="${r1(x + dir * 7)}" y2="${r1(y - 6)}"/>`;
     return s;
   }
-  function supportSVG(s, X, beamY, L) {
-    const cx = X(s.x), y = beamY;
-    const dir = s.x < L / 2 ? -1 : 1;
-    switch (s.type) {
+  function supportSVG(type, xf, X, y) {
+    const cx = X(xf), dir = xf < 0.5 ? -1 : 1;
+    switch (type) {
       case "empotrado": return hatchWall(cx + dir * 1.5, y - 20, y + 20, dir);
-      case "guiado": {
-        const wx = cx + dir * 9;
+      case "guiado":
         return `<line class="s-struct" x1="${r1(cx)}" y1="${y - 14}" x2="${r1(cx)}" y2="${y + 14}" style="stroke-width:2.2"/>`
           + `<circle class="s-supfill" cx="${r1(cx + dir * 4.5)}" cy="${y - 8}" r="3.2"/><circle class="s-supfill" cx="${r1(cx + dir * 4.5)}" cy="${y + 8}" r="3.2"/>`
-          + hatchWall(wx, y - 19, y + 19, dir);
-      }
+          + hatchWall(cx + dir * 9, y - 19, y + 19, dir);
       case "articulado":
         return `<path class="s-supfill" d="M${r1(cx)},${y + 2} L${r1(cx - 10)},${y + 18} L${r1(cx + 10)},${y + 18} Z"/>` + hatchGround(cx - 14, cx + 14, y + 18);
       case "rodillo":
@@ -1145,119 +1460,127 @@
       default: return "";
     }
   }
+  function loadText(ld) {
+    if (ld.type === "trapezoidal") return `${ld.mag} → ${ld.mag2}`;
+    if (ld.type === "momento") return `${ld.mag} ${ld.dir === "anti" ? "↺" : "↻"}`;
+    return String(ld.mag);
+  }
 
   function drawPlot() {
-    if (!current) return;
-    const { model, sol } = current;
-    const L = model.L;
+    if (!cur) return;
+    const { sol, supports, hinges, loadInfo, keys } = cur;
+    const pm = cur.pm;
     const W = Math.max(300, Math.floor(plotHost.clientWidth || 720));
-    const narrow = W < 560;
-    const fs = 10.5;
-    const padL = narrow ? 48 : 66, padR = narrow ? 22 : 38;
+    const narrow = W < 560, fs = 10.5;
+    const padL = narrow ? 50 : 70, padR = narrow ? 22 : 38;
     const plotW = W - padL - padR;
-    const X = (x) => padL + (x / L) * plotW;
+    const X = (x) => padL + x * plotW;
     const out = [];
     const add = (s) => out.push(s);
+    const symScale = (e) => e.coef.num() * (cur.allNum && e.sym ? cur.symNum[e.sym] : 1);
 
     // ----- Esquema
-    const dists = model.loads.filter((l) => l.kind === "dist");
-    const points = model.loads.filter((l) => l.kind === "point");
-    const moments = model.loads.filter((l) => l.kind === "moment");
+    const distLoads = loadInfo.filter((li) => li.els.some((e) => e.kind === "dist"));
     const layers = [], layerOf = new Map();
-    [...dists].sort((a, b) => a.x1 - b.x1 || a.x2 - b.x2).forEach((ld) => {
+    distLoads.map((li) => {
+      const ds = li.els.filter((e) => e.kind === "dist");
+      return { li, a: Math.min(...ds.map((e) => e.a.num())), b: Math.max(...ds.map((e) => e.b.num())) };
+    }).sort((p, q) => p.a - q.a || p.b - q.b).forEach((it) => {
       let j = 0;
-      while (layers[j] && layers[j].some(([a, b]) => ld.x1 < b - 1e-9 && ld.x2 > a + 1e-9)) j += 1;
-      (layers[j] = layers[j] || []).push([ld.x1, ld.x2]);
-      layerOf.set(ld, j);
+      while (layers[j] && layers[j].some(([a, b]) => it.a < b - 1e-9 && it.b > a + 1e-9)) j += 1;
+      (layers[j] = layers[j] || []).push([it.a, it.b]);
+      layerOf.set(it.li, { j, a: it.a, b: it.b });
     });
     const layerH = 30;
-    const arrowLen = Math.max(points.length ? 42 : 0, layers.length * layerH + 12);
+    const hasPoint = loadInfo.some((li) => li.els[0] && li.els[0].kind === "point");
+    const arrowLen = Math.max(hasPoint ? 42 : 0, layers.length * layerH + 12);
     const beamY = Math.max(arrowLen, 24) + 48;
     const top = labelSet({ x1: 2, x2: W - 2 });
-    const place = (set, text, x, y, anchor, steps) => {
-      for (const dy of steps) { const p = set.place(text, x, y + dy, anchor, fs); if (p) return p; }
+    const place = (set, text, x, y, anchor, steps, dxs = [0]) => {
+      for (const dy of steps) for (const dx of dxs) { const p = set.place(text, x + dx, y + dy, anchor, fs); if (p) return p; }
       return set.place(text, x, y + steps[0], anchor, fs, true);
     };
+    const structX = uniqQ([Q0, Q1, ...supports.filter((s) => s.type !== "libre").map((s) => s.x), ...hinges.map((h) => h.x)]);
+    const structSet = new Set(structX.map((q) => `${q.n}/${q.d}`));
+    const isStruct = (q) => structSet.has(`${q.n}/${q.d}`);
 
-    const struct = uniqueSorted([0, L, ...model.supports.filter((s) => s.type !== "libre").map((s) => s.x), ...model.hinges.map((h) => h.x)], 1e-9 * L);
-    const keys = uniqueSorted([...struct, ...model.loads.flatMap((ld) => (ld.kind === "dist" ? [ld.x1, ld.x2] : [ld.x]))], 1e-9 * L);
+    if (!sol.ok) for (const [a, b] of sol.moving) add(`<rect class="s-mech" x="${r1(X(a.num()))}" y="${beamY - 10}" width="${r1(X(b.num()) - X(a.num()))}" height="20" rx="3"/>`);
 
-    if (!sol.ok) for (const [a, b] of sol.mechanism.moving) add(`<rect class="s-mech" x="${r1(X(a))}" y="${beamY - 10}" width="${r1(X(b) - X(a))}" height="20" rx="3"/>`);
-
-    const wMax = Math.max(1e-12, ...dists.flatMap((d) => [Math.abs(d.w1), Math.abs(d.w2)]));
+    let maxc = 1e-12;
+    for (const li of distLoads) for (const e of li.els) if (e.kind === "dist") for (let k = 0; k <= 20; k += 1) {
+      const x = e.a.num() + (e.b.num() - e.a.num()) * k / 20;
+      maxc = Math.max(maxc, Math.abs(symScale(e) * P.evf(e.w, x)));
+    }
     const hMaxPx = layerH - 10;
-    const hpx = (w) => (Math.abs(w) < 1e-12 ? 0 : Math.max(3, Math.abs(w) / wMax * hMaxPx));
-    const loadLabels = [];
-    for (const ld of dists) {
-      const base = beamY - 3 - layerOf.get(ld) * layerH;
-      const wAt = (x) => ld.w1 + (ld.w2 - ld.w1) * (x - ld.x1) / (ld.x2 - ld.x1);
-      const xsTop = [ld.x1];
-      if (ld.w1 * ld.w2 < 0) xsTop.push(ld.x1 + (ld.x2 - ld.x1) * ld.w1 / (ld.w1 - ld.w2));
-      xsTop.push(ld.x2);
-      const pts = [`${r1(X(ld.x1))},${r1(base)}`, ...xsTop.map((x) => `${r1(X(x))},${r1(base - hpx(wAt(x)))}`), `${r1(X(ld.x2))},${r1(base)}`];
-      add(`<polygon class="s-qfill" points="${pts.join(" ")}"/>`);
-      const n = Math.max(2, Math.round((X(ld.x2) - X(ld.x1)) / 13) + 1);
-      for (let i = 0; i < n; i += 1) {
-        const x = ld.x1 + (ld.x2 - ld.x1) * i / (n - 1), w = wAt(x), h = hpx(w), px = X(x);
-        if (h < 5) continue;
-        add(w > 0 ? arrow(px, base - h, px, base, 4.5, "s-load") : arrow(px, base, px, base - h, 4.5, "s-load"));
+    const labels = [];
+    for (const li of distLoads) {
+      const { j, a, b } = layerOf.get(li), base = beamY - 3 - j * layerH;
+      for (const e of li.els.filter((q) => q.kind === "dist")) {
+        const ea = e.a.num(), eb = e.b.num(), sc = symScale(e);
+        const hp = (x) => { const v = Math.abs(sc * P.evf(e.w, x)) / maxc * hMaxPx; return v < 0.5 ? 0 : Math.max(2, v); };
+        const pts = [];
+        for (let k = 0; k <= 32; k += 1) { const x = ea + (eb - ea) * k / 32; pts.push(`${r1(X(x))},${r1(base - hp(x))}`); }
+        add(`<polygon class="s-qfill" points="${r1(X(ea))},${base} ${pts.join(" ")} ${r1(X(eb))},${base}"/>`);
+        const n = Math.max(2, Math.round((X(eb) - X(ea)) / 13) + 1);
+        for (let k = 0; k < n; k += 1) {
+          const x = ea + (eb - ea) * k / (n - 1), w = sc * P.evf(e.w, x), h = hp(x), px = X(x);
+          if (h < 5) continue;
+          add(w > 0 ? arrow(px, base - h, px, base, 4.5, "s-load") : arrow(px, base, px, base - h, 4.5, "s-load"));
+        }
       }
-      const txt = Math.abs(ld.w1 - ld.w2) < 1e-12 ? `${ld.label} = ${fmtS(ld.w1)} kN/m` : `${ld.label}: ${fmtS(ld.w1)} → ${fmtS(ld.w2)} kN/m`;
-      loadLabels.push({ txt, x: (X(ld.x1) + X(ld.x2)) / 2, y: base - hMaxPx - 5, anchor: "middle" });
+      labels.push({ txt: loadText(li.ld), x: (X(a) + X(b)) / 2, y: base - hMaxPx - 5, dxs: [0, -44, 44, -88, 88] });
     }
-    for (const ld of points) {
-      const px = X(ld.x), tp = beamY - 3 - arrowLen;
-      add(ld.P >= 0 ? arrow(px, tp, px, beamY - 3, 8, "s-pload") : arrow(px, beamY - 3, px, tp, 8, "s-pload"));
-      loadLabels.push({ txt: `${ld.label} = ${fmtS(Math.abs(ld.P))} kN${ld.P < 0 ? " ↑" : ""}`, x: px, y: tp - 5, anchor: "middle", first: true });
+    for (const li of loadInfo) {
+      const e = li.els[0];
+      if (!e || e.kind === "dist") continue;
+      if (e.kind === "point") {
+        const px = X(e.a.num()), tp = beamY - 3 - arrowLen, up = symScale(e) < 0;
+        add(up ? arrow(px, beamY - 3, px, tp, 8, "s-pload") : arrow(px, tp, px, beamY - 3, 8, "s-pload"));
+        labels.unshift({ txt: loadText(li.ld) + (up ? " ↑" : ""), x: px, y: tp - 5 });
+        top.place("|", px, beamY - 6, "middle", arrowLen - 8);
+      } else {
+        const cx = X(e.a.num()), cy = beamY, rr = 15, ccw = e.coef.num() < 0;
+        const a0 = -35 * Math.PI / 180, a1 = 215 * Math.PI / 180;
+        const Pt = (ang) => [cx + rr * Math.cos(ang), cy - rr * Math.sin(ang)];
+        const [sx, sy] = ccw ? Pt(a0) : Pt(a1), [ex, ey] = ccw ? Pt(a1) : Pt(a0);
+        add(`<path class="s-mload" d="M${r1(sx)},${r1(sy)} A${rr},${rr} 0 1 ${ccw ? 0 : 1} ${r1(ex)},${r1(ey)}"/>`);
+        const ae = ccw ? a1 : a0, t = ccw ? [-Math.sin(ae), -Math.cos(ae)] : [Math.sin(ae), Math.cos(ae)];
+        add(arrow(ex - t[0] * 7, ey - t[1] * 7, ex + t[0] * 2, ey + t[1] * 2, 7, "s-mload").replace(/<line[^>]*\/>/, ""));
+        labels.push({ txt: loadText(li.ld), x: cx, y: cy - rr - 7 });
+      }
     }
-    for (const ld of moments) {
-      const cx = X(ld.x), cy = beamY, rr = 15, ccw = ld.C >= 0;
-      const a0 = -35 * Math.PI / 180, a1 = 215 * Math.PI / 180;
-      const P = (a) => [cx + rr * Math.cos(a), cy - rr * Math.sin(a)];
-      const [sx, sy] = ccw ? P(a0) : P(a1);
-      const [ex, ey] = ccw ? P(a1) : P(a0);
-      add(`<path class="s-mload" d="M${r1(sx)},${r1(sy)} A${rr},${rr} 0 1 ${ccw ? 0 : 1} ${r1(ex)},${r1(ey)}"/>`);
-      const ae = ccw ? a1 : a0;
-      const t = ccw ? [-Math.sin(ae), -Math.cos(ae)] : [Math.sin(ae), Math.cos(ae)];
-      add(arrow(ex - t[0] * 7, ey - t[1] * 7, ex + t[0] * 2, ey + t[1] * 2, 7, "s-mload").replace(/<line[^>]*\/>/, ""));
-      loadLabels.push({ txt: `${ld.label} = ${fmtS(Math.abs(ld.M))} kN·m ${ccw ? "↺" : "↻"}`, x: cx, y: cy - rr - 7, anchor: "middle" });
+    add(`<line class="s-beam" x1="${r1(X(0))}" y1="${beamY}" x2="${r1(X(1))}" y2="${beamY}"/>`);
+    for (const s of supports) add(supportSVG(s.type, s.x.num(), X, beamY));
+    for (const h of hinges) add(`<circle class="s-hinge" cx="${r1(X(h.x.num()))}" cy="${beamY}" r="4.8"/>`);
+    for (const lb of labels) {
+      const p = place(top, lb.txt, lb.x, lb.y, "middle", [0, -12, -24], lb.dxs);
+      add(`<text class="s-lbl halo" x="${r1(p.x)}" y="${r1(p.y)}" text-anchor="middle">${esc(lb.txt)}</text>`);
     }
-
-    add(`<line class="s-beam" x1="${r1(X(0))}" y1="${beamY}" x2="${r1(X(L))}" y2="${beamY}"/>`);
-    for (const s of model.supports) add(supportSVG(s, X, beamY, L));
-    for (const h of model.hinges) add(`<circle class="s-hinge" cx="${r1(X(h.x))}" cy="${beamY}" r="4.8"/>`);
-
-    loadLabels.sort((a, b) => (b.first ? 1 : 0) - (a.first ? 1 : 0));
-    for (const lb of loadLabels) {
-      const p = place(top, lb.txt, lb.x, lb.y, lb.anchor, [0, -12, -24]);
-      add(`<text class="s-lbl halo" x="${r1(p.x)}" y="${r1(p.y)}" text-anchor="${lb.anchor}">${esc(lb.txt)}</text>`);
-    }
-
-    // Nombres de apoyos y articulaciones
     const below = labelSet({ x1: 2, x2: W - 2 });
-    const names = [
-      ...model.supports.filter((s) => s.type !== "libre" || s.end).map((s) => ({ x: s.x, t: s.label, pri: 0 })),
-      ...model.hinges.map((h) => ({ x: h.x, t: h.label, pri: 1 })),
-    ].sort((a, b) => a.pri - b.pri);
+    const names = [...supports.map((s) => ({ x: s.x.num(), t: s.label })), ...hinges.map((h) => ({ x: h.x.num(), t: h.label }))];
     for (const nm of names) {
       const p = place(below, nm.t, X(nm.x), beamY + 38, "middle", [0, 11]);
       add(`<text class="s-name" x="${r1(p.x)}" y="${r1(p.y)}" text-anchor="middle">${esc(nm.t)}</text>`);
     }
-
     // Cotas
     const yDim = beamY + 64;
-    add(`<line class="s-dim" x1="${r1(X(0))}" y1="${yDim}" x2="${r1(X(L))}" y2="${yDim}"/>`);
-    keys.forEach((x) => add(`<line class="s-dim" x1="${r1(X(x))}" y1="${yDim - 4}" x2="${r1(X(x))}" y2="${yDim + 4}"/>`));
+    add(`<line class="s-dim" x1="${r1(X(0))}" y1="${yDim}" x2="${r1(X(1))}" y2="${yDim}"/>`);
+    keys.forEach((q) => add(`<line class="s-dim" x1="${r1(X(q.num()))}" y1="${yDim - 4}" x2="${r1(X(q.num()))}" y2="${yDim + 4}"/>`));
     for (let i = 0; i < keys.length - 1; i += 1) {
-      const a = keys[i], b = keys[i + 1], t = fmtS(b - a), wpx = X(b) - X(a);
-      if (wpx >= t.length * 6.3 + 6) add(`<text class="s-dimtxt" x="${r1((X(a) + X(b)) / 2)}" y="${yDim - 5}" text-anchor="middle">${t}</text>`);
+      const d = keys[i + 1].sub(keys[i]);
+      const t = cur.Lnum ? fmtSig(d.num() * cur.Lf, 4) : posShort(d);
+      const wpx = X(keys[i + 1].num()) - X(keys[i].num());
+      if (keys.length > 2 && wpx >= [...t].length * 6.3 + 6) add(`<text class="s-dimtxt" x="${r1((X(keys[i].num()) + X(keys[i + 1].num())) / 2)}" y="${yDim - 5}" text-anchor="middle">${esc(t)}</text>`);
     }
-    add(`<text class="s-dimtxt" x="${r1(X(L / 2))}" y="${yDim + 17}" text-anchor="middle">L = ${fmtS(L)} m</text>`);
+    add(`<text class="s-dimtxt" x="${r1(X(0.5))}" y="${yDim + 17}" text-anchor="middle">${cur.Lnum ? `L = ${fmtSig(cur.Lf, 5)} ${esc(state.uL)}` : "L"}</text>`);
     const schBottom = yDim + 24;
 
-    if (!sol.ok) {
+    if (!pm) {
+      const msg = !sol.ok ? "Sin diagramas: la viga es un mecanismo."
+        : !sol.groups.length ? "Agrega una carga para ver los diagramas."
+          : `Hay cargas con distintas letras (${cur.syms.join(", ")}). Escribe sus valores y el de L para dibujar los diagramas.`;
       const H = schBottom + 54;
-      add(`<text class="d-empty" x="${W / 2}" y="${schBottom + 30}" text-anchor="middle">Sin diagramas: la viga es un mecanismo.</text>`);
+      add(`<text class="d-empty" x="${W / 2}" y="${schBottom + 30}" text-anchor="middle">${esc(msg)}</text>`);
       svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
       svg.innerHTML = out.join("");
       geom = null;
@@ -1266,154 +1589,158 @@
 
     // ----- Diagramas V y M
     const samples = [];
-    for (const s of sol.segs) {
-      const n = Math.max(2, Math.ceil(260 * s.l / L) + 1);
-      for (let i = 0; i < n; i += 1) { const t = s.l * i / (n - 1); samples.push({ x: s.xa + t, V: s.Vt(t), M: s.Mt(t) }); }
+    for (const sg of pm.segs) {
+      const n = Math.max(2, Math.ceil(260 * (sg.e - sg.s)) + 1);
+      for (let i = 0; i < n; i += 1) { const x = sg.s + (sg.e - sg.s) * i / (n - 1); samples.push({ x, v: P.evf(sg.v, x), m: P.evf(sg.m, x) }); }
     }
     const vTop = schBottom + 34, vH = narrow ? 150 : 172;
     const mTop = vTop + vH + 40, mH = narrow ? 172 : 206;
     const H = mTop + mH + 30;
-    const structSet = new Set(struct.map((x) => x.toPrecision(12)));
-    keys.forEach((x) => {
-      const strong = structSet.has(x.toPrecision(12));
-      add(`<line class="d-guide${strong ? " strong" : ""}" x1="${r1(X(x))}" y1="${schBottom + 2}" x2="${r1(X(x))}" y2="${mTop + mH}"/>`);
-    });
+    keys.forEach((q) => add(`<line class="d-guide${isStruct(q) ? " strong" : ""}" x1="${r1(X(q.num()))}" y1="${schBottom + 2}" x2="${r1(X(q.num()))}" y2="${mTop + mH}"/>`));
 
     const panel = (pTop, h, key, title, conv, flip) => {
       const vals = samples.map((p) => p[key]);
       let lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
       const span = hi - lo;
-      if (span < 1e-9) { lo = -1; hi = 1; } else { lo -= span * 0.17; hi += span * 0.17; }
+      if (span < 1e-12) { lo = -1; hi = 1; } else { lo -= span * 0.17; hi += span * 0.17; }
       const Y = (v) => (flip ? pTop + (v - lo) / (hi - lo) * h : pTop + h - (v - lo) / (hi - lo) * h);
       for (const t of niceTicks(lo, hi, narrow ? 3 : 4)) {
         const y = Y(t);
-        add(`<line class="d-grid" x1="${padL}" y1="${r1(y)}" x2="${W - padR}" y2="${r1(y)}"/><text class="d-tick" x="${padL - 7}" y="${r1(y + 3.5)}" text-anchor="end">${fmtS(t)}</text>`);
+        add(`<line class="d-grid" x1="${padL}" y1="${r1(y)}" x2="${W - padR}" y2="${r1(y)}"/><text class="d-tick" x="${padL - 7}" y="${r1(y + 3.5)}" text-anchor="end">${fmtSig(t, 3)}</text>`);
       }
-      add(`<text class="d-title ${key === "V" ? "is-v" : "is-m"}" x="${padL}" y="${pTop - 12}">${title}</text>`);
-      add(`<text class="d-conv" x="${W - padR}" y="${pTop - 12}" text-anchor="end">${conv}</text>`);
+      add(`<text class="d-title ${key === "v" ? "is-v" : "is-m"}" x="${padL}" y="${pTop - 12}">${esc(title)}</text>`);
+      if (conv) add(`<text class="d-conv" x="${W - padR}" y="${pTop - 12}" text-anchor="end">${esc(conv)}</text>`);
       const y0 = Y(0);
       const line = samples.map((p, i) => `${i ? "L" : "M"}${r1(X(p.x))},${r1(Y(p[key]))}`).join(" ");
-      add(`<path class="d-${key.toLowerCase()}-area" d="M${r1(X(0))},${r1(y0)} ${line.replace(/^M/, "L")} L${r1(X(L))},${r1(y0)} Z"/>`);
+      add(`<path class="d-${key}-area" d="M${r1(X(0))},${r1(y0)} ${line.replace(/^M/, "L")} L${r1(X(1))},${r1(y0)} Z"/>`);
       add(`<line class="d-axis" x1="${padL}" y1="${r1(y0)}" x2="${W - padR}" y2="${r1(y0)}"/>`);
-      add(`<path class="d-${key.toLowerCase()}-line" d="${line}"/>`);
+      add(`<path class="d-${key}-line" d="${line}"/>`);
       return Y;
     };
-
-    const Yv = panel(vTop, vH, "V", "Cortante V (kN)", narrow ? "" : "V+ hacia arriba", false);
-    const mFlip = !!state.mDown;
-    const Ym = panel(mTop, mH, "M", "Momento flector M (kN·m)", narrow ? "" : (mFlip ? "M+ dibujado abajo (tracción)" : "M+ dibujado arriba"), mFlip);
-    for (const h of model.hinges) add(`<circle class="d-hinge0" cx="${r1(X(h.x))}" cy="${r1(Ym(0))}" r="3.6"/>`);
+    const unitTitle = (u) => (pm.mode === "num" ? `(${u})` : `(× ${u})`);
+    const Yv = panel(vTop, vH, "v", `Cortante V ${unitTitle(pm.unitV)}`, narrow ? "" : "V+ hacia arriba", false);
+    const flip = !!state.mDown;
+    const Ym = panel(mTop, mH, "m", `Momento flector M ${unitTitle(pm.unitM)}`, narrow ? "" : flip ? "M+ dibujado abajo (tracción)" : "M+ dibujado arriba", flip);
+    for (const h of hinges) add(`<circle class="d-hinge0" cx="${r1(X(h.x.num()))}" cy="${r1(Ym(0))}" r="3.6"/>`);
 
     const valueLabels = (key, Y, pTop, h) => {
       const set = labelSet({ x1: padL - 4, x2: W - 2 });
-      const scale = Math.max(1e-9, ...samples.map((p) => Math.abs(p[key])));
-      const eps = 1e-6 * scale;
-      const ext = key === "V" ? [sol.vMax, sol.vMin] : [sol.mMax, sol.mMin];
+      const scale = Math.max(1e-12, ...samples.map((p) => Math.abs(p[key])));
+      const eps = 1e-7 * scale;
+      const ex = extremesOf(pm, key);
       const cands = [];
-      ext.forEach((e) => cands.push({ x: e.x, v: e.v, pri: 0, dot: true, anchor: "middle", dx: 0 }));
-      if (key === "M") sol.interior.forEach((e) => cands.push({ x: e.x, v: e.v, pri: 1, dot: true, anchor: "middle", dx: 0 }));
-      for (const b of sol.breaks) {
-        const l = key === "V" ? b.Vl : b.Ml, r = key === "V" ? b.Vr : b.Mr;
-        const pri = structSet.has(b.x.toPrecision(12)) ? 1 : 2;
-        const atStart = b.x <= 1e-9 * L, atEnd = b.x >= L * (1 - 1e-9);
-        if (!atStart && !atEnd && Math.abs(l - r) > eps) {
-          cands.push({ x: b.x, v: l, pri, anchor: "end", dx: -4 });
-          cands.push({ x: b.x, v: r, pri, anchor: "start", dx: 4 });
-        } else cands.push({ x: b.x, v: atEnd ? l : r, pri, anchor: "middle", dx: 0 });
-      }
+      [ex.max, ex.min].forEach((e) => cands.push({ ...e, pri: 0, dot: true, anchor: "middle", dx: 0 }));
+      if (key === "m") ex.interior.forEach((e) => cands.push({ ...e, pri: 1, dot: true, anchor: "middle", dx: 0 }));
+      pm.segs.forEach((sg, i) => {
+        const q = sg.sq, prev = pm.segs[i - 1];
+        const pri = isStruct(q) ? 1 : 2;
+        const rv = { x: sg.s, xq: q, v: P.evf(sg[key], sg.s), vq: sg[`${key}q`] ? P.ev(sg[`${key}q`], q) : null };
+        if (prev) {
+          const lv = { x: sg.s, xq: q, v: P.evf(prev[key], sg.s), vq: prev[`${key}q`] ? P.ev(prev[`${key}q`], q) : null };
+          if (Math.abs(lv.v - rv.v) > eps) { cands.push({ ...lv, pri, anchor: "end", dx: -4 }); cands.push({ ...rv, pri, anchor: "start", dx: 4 }); }
+          else cands.push({ ...rv, pri, anchor: "middle", dx: 0 });
+        } else cands.push({ ...rv, pri, anchor: "middle", dx: 0 });
+        if (i === pm.segs.length - 1) cands.push({ x: sg.e, xq: sg.eq, v: P.evf(sg[key], sg.e), vq: sg[`${key}q`] ? P.ev(sg[`${key}q`], sg.eq) : null, pri, anchor: "middle", dx: 0 });
+      });
       cands.sort((a, b) => a.pri - b.pri);
       const shown = [];
       for (const c of cands) {
         if (Math.abs(c.v) < eps) continue;
-        if (shown.some((s) => Math.abs(s.x - c.x) < 1e-9 * L && Math.abs(s.v - c.v) < eps)) continue;
+        if (shown.some((s) => Math.abs(s.x - c.x) < 1e-9 && Math.abs(s.v - c.v) < eps)) continue;
+        const txt = fmtVal(pm, c.v, c.vq, key);
         const px = X(c.x), py = Y(c.v), away = py <= Y(0);
-        const ly = away ? py - 7 : py + 15;
-        const p = set.place(fmt(c.v), px + c.dx, Math.min(Math.max(ly, pTop + 2), pTop + h + 12), c.anchor, fs);
+        const p = set.place(txt, px + c.dx, Math.min(Math.max(away ? py - 7 : py + 15, pTop + 2), pTop + h + 12), c.anchor, fs);
         if (!p) continue;
         shown.push(c);
-        if (c.dot) add(`<circle class="d-dot-${key.toLowerCase()}" cx="${r1(px)}" cy="${r1(py)}" r="3.6"/>`);
-        add(`<text class="d-lbl-${key.toLowerCase()} halo" x="${r1(p.x)}" y="${r1(p.y)}" text-anchor="${c.anchor}">${fmt(c.v)}</text>`);
+        if (c.dot) add(`<circle class="d-dot-${key}" cx="${r1(px)}" cy="${r1(py)}" r="3.6"/>`);
+        add(`<text class="d-lbl-${key} halo" x="${r1(p.x)}" y="${r1(p.y)}" text-anchor="${c.anchor}">${esc(txt)}</text>`);
       }
     };
-    valueLabels("V", Yv, vTop, vH);
-    valueLabels("M", Ym, mTop, mH);
+    valueLabels("v", Yv, vTop, vH);
+    valueLabels("m", Ym, mTop, mH);
 
     const xl = labelSet({ x1: padL - 8, x2: W - 2 });
-    const xOrder = [...keys].sort((a, b) => (structSet.has(b.toPrecision(12)) ? 1 : 0) - (structSet.has(a.toPrecision(12)) ? 1 : 0));
-    for (const x of xOrder) {
-      const p = xl.place(fmtS(x), X(x), mTop + mH + 18, "middle", fs);
-      if (p) add(`<text class="d-xlbl" x="${r1(p.x)}" y="${r1(p.y)}" text-anchor="middle">${fmtS(x)}</text>`);
+    const xOrder = [...keys].sort((a, b) => (isStruct(b) ? 1 : 0) - (isStruct(a) ? 1 : 0));
+    for (const q of xOrder) {
+      const t = pm.mode === "num" ? fmtSig(q.num() * cur.Lf, 4) : posShort(q);
+      const p = xl.place(t, X(q.num()), mTop + mH + 18, "middle", fs);
+      if (p) add(`<text class="d-xlbl" x="${r1(p.x)}" y="${r1(p.y)}" text-anchor="middle">${esc(t)}</text>`);
     }
-    add(`<text class="d-xlbl" x="${padL - 9}" y="${mTop + mH + 18}" text-anchor="end">x (m)</text>`);
-
+    add(`<text class="d-xlbl" x="${padL - 9}" y="${mTop + mH + 18}" text-anchor="end">x${pm.mode === "num" ? ` (${esc(state.uL)})` : ""}</text>`);
     add(`<g id="probeG" visibility="hidden"><line class="p-line" id="pLine" x1="0" y1="${schBottom}" x2="0" y2="${mTop + mH}"/><circle class="p-dot-v" id="pDotV" r="4.2"/><circle class="p-dot-m" id="pDotM" r="4.2"/></g>`);
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     svg.innerHTML = out.join("");
-    geom = { X, Yv, Ym, padL, plotW, L, W };
+    geom = { X, Yv, Ym, padL, plotW, W };
   }
 
-  // ---------- Lectura de valores
+  // ---------- Lectura en un punto
   function probeFromEvent(e) {
     if (!geom) return null;
     const rect = svg.getBoundingClientRect();
     const px = (e.clientX - rect.left) * (geom.W / rect.width);
-    const x = ((px - geom.padL) / geom.plotW) * geom.L;
-    if (x < -0.04 * geom.L || x > 1.04 * geom.L) return null;
-    return Math.min(geom.L, Math.max(0, x));
+    const x = (px - geom.padL) / geom.plotW;
+    if (x < -0.04 || x > 1.04) return null;
+    return Math.min(1, Math.max(0, x));
+  }
+  function readText(key, xq, x) {
+    const unit = key === "m" ? uM() : state.uF;
+    const L = xq ? termsAtQ(key, xq, "left") : termsAtF(key, x, "left");
+    const R = xq ? termsAtQ(key, xq, "right") : termsAtF(key, x, "right");
+    const edge = xq ? (xq.isZero() ? "start" : xq.cmp(1) === 0 ? "end" : "") : x <= 1e-12 ? "start" : x >= 1 - 1e-12 ? "end" : "";
+    const fmt = (t) => {
+      const base = t[0] && t[0].q ? sumText(t) : decTerms(t);
+      return cur.allNum && base !== "0" ? `${base} = ${fmtSig(sumNum(t), 5)} ${unit}` : base;
+    };
+    if (edge === "start") return fmt(R);
+    if (edge === "end") return fmt(L);
+    return sameTerms(L, R) ? fmt(R) : `${fmt(L)} → ${fmt(R)}`;
   }
   function updateProbe() {
     const g = document.getElementById("probeG");
-    if (!current || !current.sol.ok || !geom) {
+    if (!cur || !cur.sol.ok || !cur.sol.groups.length) {
       $("readV").textContent = "V = —"; $("readM").textContent = "M = —";
       if (g) g.setAttribute("visibility", "hidden");
       return;
     }
-    const { sol, model } = current;
-    const x = hoverX ?? pinnedX ?? sol.mMax.x;
-    const Vl = sol.evalV(x, "left"), Vr = sol.evalV(x, "right");
-    const Ml = sol.evalM(x, "left"), Mr = sol.evalM(x, "right");
-    const tolV = 1e-6 * Math.max(1, Math.abs(sol.vMax.v), Math.abs(sol.vMin.v));
-    const tolM = 1e-6 * Math.max(1, Math.abs(sol.mMax.v), Math.abs(sol.mMin.v));
-    const atEdge = x <= 1e-9 * model.L || x >= model.L * (1 - 1e-9);
-    $("readV").textContent = !atEdge && Math.abs(Vl - Vr) > tolV ? `V = ${fmt(Vl)} → ${fmt(Vr)} kN` : `V = ${fmt(x >= model.L * (1 - 1e-9) ? Vl : Vr)} kN`;
-    $("readM").textContent = !atEdge && Math.abs(Ml - Mr) > tolM ? `M = ${fmt(Ml)} → ${fmt(Mr)} kN·m` : `M = ${fmt(x >= model.L * (1 - 1e-9) ? Ml : Mr)} kN·m`;
+    let xq = null, x;
+    if (hoverX != null) x = hoverX;
+    else if (pinned) { xq = pinned.q; x = pinned.x; }
+    else {
+      const ext = cur.pm ? extremesOf(cur.pm, "m") : null;
+      const e = ext ? (Math.abs(ext.max.v) >= Math.abs(ext.min.v) ? ext.max : ext.min) : null;
+      if (e) { xq = e.xq || null; x = e.x; } else { xq = new Q(1, 2); x = 0.5; }
+    }
+    $("readV").textContent = `V = ${readText("v", xq, x)}`;
+    $("readM").textContent = `M = ${readText("m", xq, x)}`;
     const inp = $("probeX");
-    if (document.activeElement !== inp) inp.value = fmt(x, 3).replace(/\./g, "");
-    if (g) {
+    if (document.activeElement !== inp) inp.value = xq ? posShort(xq) : `${fmtSig(x, 4).replace(",", ".")}L`;
+    if (g && geom && cur.pm) {
       const px = geom.X(x);
+      const sv = cur.pm.segs[segIndexF(x, "right")];
       g.setAttribute("visibility", "visible");
       $("pLine").setAttribute("x1", px); $("pLine").setAttribute("x2", px);
-      $("pDotV").setAttribute("cx", px); $("pDotV").setAttribute("cy", geom.Yv(Vr));
-      $("pDotM").setAttribute("cx", px); $("pDotM").setAttribute("cy", geom.Ym(Mr));
+      $("pDotV").setAttribute("cx", px); $("pDotV").setAttribute("cy", geom.Yv(P.evf(sv.v, x)));
+      $("pDotM").setAttribute("cx", px); $("pDotM").setAttribute("cy", geom.Ym(P.evf(sv.m, x)));
     }
   }
-
   svg.addEventListener("pointermove", (e) => { const x = probeFromEvent(e); if (x == null) return; hoverX = x; updateProbe(); });
   svg.addEventListener("pointerleave", () => { hoverX = null; updateProbe(); });
-  svg.addEventListener("pointerdown", (e) => { const x = probeFromEvent(e); if (x == null) return; pinnedX = x; hoverX = e.pointerType === "mouse" ? x : null; updateProbe(); });
+  svg.addEventListener("pointerdown", (e) => {
+    const x = probeFromEvent(e);
+    if (x == null) return;
+    const q = bestRational(x, 48);
+    pinned = Math.abs(q.num() - x) < 0.004 ? { q, x: q.num() } : { q: null, x };
+    hoverX = e.pointerType === "mouse" ? x : null;
+    updateProbe();
+  });
   $("probeX").addEventListener("input", (e) => {
-    const x = parseNum(e.target.value);
-    if (current && Number.isFinite(x) && x >= 0 && x <= current.model.L) { pinnedX = x; hoverX = null; e.target.removeAttribute("aria-invalid"); updateProbe(); }
-    else e.target.setAttribute("aria-invalid", "true");
+    if (!cur) return;
+    try { const q = parsePos(e.target.value, cur.Lnum); pinned = { q, x: q.num() }; hoverX = null; e.target.removeAttribute("aria-invalid"); updateProbe(); }
+    catch (err) { e.target.setAttribute("aria-invalid", "true"); }
   });
   $("probeX").addEventListener("blur", (e) => { e.target.removeAttribute("aria-invalid"); updateProbe(); });
 
   // ---------- Arranque
-  $("preset").innerHTML = `<option value="">Elige un caso…</option>` + PRESETS.map((p, i) => `<option value="${i}">${esc(p.name)}</option>`).join("");
-  $("preset").addEventListener("change", (e) => {
-    const p = PRESETS[Number(e.target.value)];
-    if (!p) return;
-    state = fromPreset(p);
-    lastL = parseNum(state.L);
-    pinnedX = null; hoverX = null;
-    renderLists();
-    update();
-    e.target.value = "";
-  });
-  const controls = $("controls");
-  controls.addEventListener("input", onInput);
-  controls.addEventListener("change", (e) => { if (e.target.tagName === "SELECT" && e.target.id !== "preset") onInput(e); });
-  controls.addEventListener("click", onClick);
   const setFlip = (down) => {
     state.mDown = down;
     $("mUp").setAttribute("aria-pressed", String(!down));
@@ -1435,8 +1762,10 @@
     raf = requestAnimationFrame(() => { drawPlot(); updateProbe(); });
   }).observe(plotHost);
 
-  renderLists();
-  update();
+  renderPresets();
+  renderAddBar();
+  renderControls();
+  compute();
 })();
 </script>
 </body>
